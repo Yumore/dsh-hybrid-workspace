@@ -38,6 +38,8 @@ try {
   ok('页面含记忆区块', page.text.includes('相关记忆') && page.text.includes('代表性问法'));
   ok('页面含路由 trace', page.text.includes('最近路由判定'));
   ok('页面含合并按钮', page.text.includes('data-op="merge"'));
+  ok('页面含归档/删除按钮', page.text.includes('data-op="archive"') && page.text.includes('data-op="delete"'));
+  ok('页面含上下文占用', page.text.includes('占用上下文') && page.text.includes('上下文合计'));
   ok('页面自包含无外链', !page.text.includes('https://') && !page.text.includes('http://'));
   ok('页面体积正常', page.text.length > 7000, String(page.text.length));
 
@@ -47,6 +49,8 @@ try {
   ok('API 返回工作区', api.json.workspaces.length === 1 && ws.name.includes('示范门店'), ws?.name);
   ok('API 返回结构化记忆', (ws.memories ?? []).length >= 1 && ws.memoryStats, JSON.stringify(ws.memoryStats));
   ok('API 返回会话绑定', (api.json.sessions ?? []).length === 1);
+  ok('API 返回上下文占用', (ws.contextChars ?? 0) > 0 && (ws.contextTokens ?? 0) > 0 && (ws.contextPct ?? 0) > 0, JSON.stringify({ chars: ws.contextChars, tokens: ws.contextTokens, pct: ws.contextPct }));
+  ok('API 统计含上下文合计', api.json.stats.contextChars >= ws.contextChars && api.json.stats.contextTokens >= ws.contextTokens);
 
   const renamed = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'rename', id: ws.id, name: '示范门店终端掉线' }) });
   ok('重命名返回 ok', renamed.status === 200 && renamed.json?.ok, String(renamed.status) + ' ' + renamed.text.slice(0, 80));
@@ -57,6 +61,25 @@ try {
   ok('改范围返回 ok', described.status === 200 && described.json?.ok);
   const afterDescribe = await req('/api');
   ok('改范围已生效', afterDescribe.json.workspaces[0].description.includes('4G'));
+
+  const archived = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'archive', id: ws.id }) });
+  ok('归档返回 ok 与释放量', archived.status === 200 && archived.json?.ok && archived.json.archived && archived.json.freed?.chars > 0, JSON.stringify(archived.json));
+  const afterArchive = await req('/api');
+  ok('归档后工作区为空', afterArchive.json.workspaces.length === 0);
+  ok('归档保留快照与占用', afterArchive.json.archives.length === 1 && afterArchive.json.archives[0].contextChars > 0 && (afterArchive.json.archives[0].turns ?? []).length >= 1);
+  ok('归档解绑会话', (afterArchive.json.sessions[0]?.workspaceId ?? null) === null);
+  const archiveId = afterArchive.json.archives[0]?.id;
+  const restored = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'restore', id: archiveId }) });
+  ok('恢复返回新 id', restored.status === 200 && restored.json?.ok && restored.json.id, JSON.stringify(restored.json));
+  const afterRestore = await req('/api');
+  ok('恢复后回到列表', afterRestore.json.workspaces.length === 1 && afterRestore.json.archives.length === 0);
+  ok('恢复保留轮数/记忆', afterRestore.json.workspaces[0].rounds >= 1 && (afterRestore.json.workspaces[0].memories ?? []).length >= 1);
+  const restoredId = afterRestore.json.workspaces[0]?.id;
+  const deleted = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'delete', id: restoredId }) });
+  ok('删除返回 ok 与释放量', deleted.status === 200 && deleted.json?.ok && deleted.json.freed?.chars > 0, JSON.stringify(deleted.json));
+  const afterDelete = await req('/api');
+  ok('删除后工作区与归档为空', afterDelete.json.workspaces.length === 0 && afterDelete.json.archives.length === 0);
+  ok('删除解绑并清 lastQuery', afterDelete.json.sessions[0]?.workspaceId === null && afterDelete.json.sessions[0]?.lastQuery === '');
 
   const unknown = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'nope' }) });
   ok('未知操作 400', unknown.status === 400 && unknown.json?.error, String(unknown.status));
