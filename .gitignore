@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+state.json
+*.bak-*
+test/fixtures/real-questions.json
+test/fixtures/*.local.json
+bench-results.json
+coverage/

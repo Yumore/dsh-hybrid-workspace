@@ -1,0 +1,37 @@
+import { tempHome, sleep } from './fake-ctx.mjs';
+
+process.env.DSH_HOME = tempHome();
+const pkgUrl = new URL('../package.json', import.meta.url);
+const { readFileSync } = await import('node:fs');
+const pkg = JSON.parse(readFileSync(pkgUrl, 'utf8'));
+const mod = await import('../lib/index.js');
+
+let fails = 0;
+const ok = (name, cond, detail = '') => {
+  if (!cond) fails++;
+  console.log((cond ? 'PASS ' : 'FAIL ') + name + (detail ? '  [' + detail + ']' : ''));
+};
+
+ok('包名与导出 name 一致', pkg.name === 'dsh-hybrid-workspace-v2' && mod.name === 'hybrid-workspace', pkg.name + '/' + mod.name);
+ok('只声明 systemPrompt 为必需注入', Array.isArray(mod.inject) && mod.inject.length === 1 && mod.inject[0] === 'systemPrompt', JSON.stringify(mod.inject));
+ok('apply 是函数', typeof mod.apply === 'function');
+ok('DEFAULTS 可读且有关键项', mod.DEFAULTS && mod.DEFAULTS.routeAccept > 0 && mod.DEFAULTS.contextMaxChars > 0);
+
+const sections = [];
+const handlers = {};
+const ctx = {
+  on: (name, fn) => { (handlers[name] ??= []).push(fn); },
+  systemPrompt: { section: s => sections.push(s), getSectionOrder: () => undefined },
+  logger: { info () {}, debug () {} },
+};
+const inst = mod.apply(ctx, { debug: false });
+await sleep(80);
+ok('系统提示词 section 已注册', sections.length === 1 && sections[0].name === 'hybrid-workspace', String(sections.length));
+ok('未绑定工作区时注入为空', sections[0]?.text?.({ agent: { session: { id: 'nope' } } }) === '');
+ok('pre-step 钩子已注册', (handlers['agent/pre-step'] ?? []).length === 1);
+ok('session/event 钩子已注册', (handlers['session/event'] ?? []).length === 1);
+ok('无 webServer 时不抛错', true);
+await inst.flush();
+
+console.log(fails ? 'LOAD FAIL ' + fails : 'LOAD PASS');
+process.exit(fails ? 1 : 0);

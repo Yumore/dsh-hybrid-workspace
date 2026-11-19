@@ -1,0 +1,12 @@
+import { createWorkspace, decideRoute, buildScorer, addExemplar } from '../lib/router.js';
+const m1 = '万象城那台收银机昨晚又掉线了，帮我看看日志';
+const m2 = '会员积分接口要不要重写成异步的，顺便把超时时间调一下';
+const m3 = '供应商对账金额差了两毛三分钱';
+const ws1 = createWorkspace(m1); ws1.rounds = 1; ws1.turns = [{role:'user',text:m1}];
+const ws2 = createWorkspace(m2); ws2.rounds = 1; ws2.turns = [{role:'user',text:m2}];
+const ws3 = createWorkspace(m3); ws3.rounds = 1; ws3.turns = [{role:'user',text:m3}];
+for (const ws of [ws1, ws2, ws3]) addExemplar(ws, ws.exemplars[0].text);
+const text = '万象城收银机掉线后 net.log 里的 reconnect 记录对不上';
+const session = { workspaceId: ws3.id, pending: null };
+console.log('scores', JSON.stringify(buildScorer([ws1,ws2,ws3]).rank(text).map(x=>({name:x.ws.name,score:x.score,margin:x.matched}))));
+console.log('decision', JSON.stringify(decideRoute({ workspaces: [ws1,ws2,ws3], session, text })));

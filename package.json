@@ -1,0 +1,32 @@
+{
+  "name": "dsh-hybrid-workspace-v2",
+  "version": "2.0.0",
+  "description": "单聊天框 + 多工作区上下文路由 v2：工作区卡路由、结构化记忆、预算化上下文",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zuoyuan333/dsh-hybrid-workspace-v2.git"
+  },
+  "homepage": "https://github.com/zuoyuan333/dsh-hybrid-workspace-v2#readme",
+  "bugs": {
+    "url": "https://github.com/zuoyuan333/dsh-hybrid-workspace-v2/issues"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "docs",
+    "scripts"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.2 <5.0.0"
+  }
+}
