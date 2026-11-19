@@ -13,8 +13,8 @@ const ok = (name, cond, detail = '') => {
 const ctx = makeCtx({ webServer: true });
 const inst = apply(ctx, { debug: false, llmJudge: false });
 const a = agent('s1');
-await firePre(ctx, a, '万象城收银机每天下午四点断线，先查 net.log 的 reconnect 记录', 1, 1);
-await fireAssistant(ctx, a, '结论：万象城收银机断线是 4G 链路心跳超时导致，下一步要把 reconnect 间隔改成 30 秒。');
+await firePre(ctx, a, '示范门店收银机每天下午四点断线，先查 net.log 的 reconnect 记录', 1, 1);
+await fireAssistant(ctx, a, '结论：示范门店收银机断线是 4G 链路心跳超时导致，下一步要把 reconnect 间隔改成 30 秒。');
 await sleep(80);
 ok('面板路由已注册', ctx.routes.length === 1, String(ctx.routes.length));
 
@@ -44,14 +44,14 @@ try {
   const api = await req('/api');
   ok('API 200 JSON', api.status === 200 && api.json && Array.isArray(api.json.workspaces), String(api.status));
   const ws = api.json.workspaces[0];
-  ok('API 返回工作区', api.json.workspaces.length === 1 && ws.name.includes('万象城'), ws?.name);
+  ok('API 返回工作区', api.json.workspaces.length === 1 && ws.name.includes('示范门店'), ws?.name);
   ok('API 返回结构化记忆', (ws.memories ?? []).length >= 1 && ws.memoryStats, JSON.stringify(ws.memoryStats));
   ok('API 返回会话绑定', (api.json.sessions ?? []).length === 1);
 
-  const renamed = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'rename', id: ws.id, name: '万象城终端掉线' }) });
+  const renamed = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'rename', id: ws.id, name: '示范门店终端掉线' }) });
   ok('重命名返回 ok', renamed.status === 200 && renamed.json?.ok, String(renamed.status) + ' ' + renamed.text.slice(0, 80));
   const afterRename = await req('/api');
-  ok('重命名已生效', afterRename.json.workspaces[0].name === '万象城终端掉线', afterRename.json.workspaces[0].name);
+  ok('重命名已生效', afterRename.json.workspaces[0].name === '示范门店终端掉线', afterRename.json.workspaces[0].name);
 
   const described = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'describe', id: ws.id, description: '收银终端 4G 链路与 net.log 排查' }) });
   ok('改范围返回 ok', described.status === 200 && described.json?.ok);

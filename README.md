@@ -97,12 +97,12 @@ node scripts/install.mjs --apply --replace   # 已装 v1 时：先卸 v1 再装 
 cd dsh-hybrid-workspace-v2
 for f in test/core.test.mjs test/router.test.mjs test/memory.test.mjs \
          test/migration.test.mjs test/autocreate.test.mjs test/state-corrupt.test.mjs \
-         test/eval-real.mjs test/ui-smoke.mjs test/load-check.mjs; do
+         test/eval-synth.mjs test/ui-smoke.mjs test/load-check.mjs; do
   node "$f"
 done
 ```
 
-测试覆盖：路由与迟滞、记忆抽取/合并/supersede/检索/压缩、v1→v2 迁移、autoCreate=false 时不丢消息、损坏状态备份、真实问题 fixture（本地自备）离线评估、面板 HTTP e2e、最小 ctx 加载。
+测试覆盖：路由与迟滞、记忆抽取/合并/supersede/检索/压缩、v1→v2 迁移、autoCreate=false 时不丢消息、损坏状态备份、108 条合成问题与 12 组人工聚类离线评估、面板 HTTP e2e、最小 ctx 加载。
 
 ## 已知边界
 
@@ -111,4 +111,4 @@ done
 - **路由是词面 + IDF**：同义改写、跨语言、极短指代依赖迟滞或 LLM 兜底；LLM 判定默认只在模糊时调用。
 - **单进程状态**：`state.json` 无跨进程锁；同一 `$DSH_HOME` 多实例并发写有风险。
 - **面板无鉴权**：依赖宿主 webServer 绑定回环地址；不要暴露到公网。
-- **测试数据**：真实问题 fixture 含生产数据，未纳入仓库；缺失时 `test/eval-real.mjs` 自动跳过真实数据部分。
+- **测试数据**：默认测试只用合成数据（`test/fixtures/synthetic-questions.json`），不含生产凭据、门店、会员或设备信息；任何真实问题 fixture 都不随仓库发布，已在 `.gitignore` 排除。

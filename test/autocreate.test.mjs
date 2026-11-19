@@ -15,14 +15,14 @@ const inst = apply(ctx, { autoCreate: false, debug: false });
 const a = agent('s-auto');
 
 // 没有当前区、又不允许自动建区：不应崩溃，也不应产生空工作区。
-const empty = await firePre(ctx, a, '万象城那台收银机昨晚又掉线了，帮我看下 4G 链路', 1);
+const empty = await firePre(ctx, a, '示范门店那台收银机昨晚又掉线了，帮我看下 4G 链路', 1);
 await sleep(30);
 ok('autoCreate=false 且无区时不建区', inst.state.workspaces.length === 0, String(inst.state.workspaces.length));
 ok('autoCreate=false 且无区时注入为空', empty === '');
 
 // 有当前区时，新话题不能把消息丢掉；应留在当前区并照常记账。
 await inst.snapshot();
-const ws = createWorkspace('万象城收银机掉线排查，先看 net.log 的 reconnect 记录', { nameMaxChars: 18 });
+const ws = createWorkspace('示范门店收银机掉线排查，先看 net.log 的 reconnect 记录', { nameMaxChars: 18 });
 inst.state.workspaces.push(ws);
 inst.state.sessions['s-auto'] = { workspaceId: ws.id, routedAt: Date.now(), pending: null, lastQuery: '', lastTurn: 0, recent: [] };
 await inst.flush();

@@ -2,11 +2,11 @@ import { decideRoute, createWorkspace, addExemplar, mergeWorkspace } from '../li
 import { jaccard, tokens } from '../lib/text.js';
 
 const clusters = [
-  ['万象城四台收银机每天下午四点断线', '万象城的收银机断线时 net.log 里 reconnect 记录对不上', '万象城断线后 session 表里 sessionid 每隔几分钟变一次'],
+  ['示范门店四台收银机每天下午四点断线', '示范门店的收银机断线时 net.log 里 reconnect 记录对不上', '示范门店断线后 session 表里 sessionid 每隔几分钟变一次'],
   ['会员积分接口现在同步写，结算老是拖延', '会员积分接口扣减要不要改成异步队列', '会员积分接口重写后结算顺序怎么保证'],
   ['供应商对账金额差了两毛三分钱', '供应商对账的采购单和发票金额对不上怎么核', '供应商对账差异要按单据号逐条查吗'],
-  ['瑞祥卡券核销时报券码已使用', '瑞祥卡券的券码状态在后台显示未核销', '瑞祥卡券核销接口返回 500 怎么排查'],
-  ['DTP 药房处方打印机打不出小票', 'DTP 药房处方单模板里的医保编号错位', 'DTP 药房处方结算单打印出来少了一联'],
+  ['示范卡券核销时报券码已使用', '示范卡券的券码状态在后台显示未核销', '示范卡券核销接口返回 500 怎么排查'],
+  ['门诊药房处方打印机打不出小票', '门诊药房处方单模板里的医保编号错位', '门诊药房处方结算单打印出来少了一联'],
   ['前台小票打印机缺纸后一直报错', '小票打印机重连后小票模板变成空白', '小票打印机的小票模板里门店名称取错了'],
   ['收银机开机黑屏进不了系统', '收银机开机换了电源适配器还是黑屏', '收银机开机时风扇转但屏幕没信号'],
   ['门店交接班报表金额对不上', '门店交接班时现金和系统差 200', '门店交接班报表要按收银员拆分吗'],
@@ -80,7 +80,7 @@ ok('凝聚度 >= 0.12', cohesion >= 0.12, 'cohesion ' + cohesion);
 
 // 迟滞：单条弱信号只挂起，连续第二条同候选才切换。
 {
-  const a = createWorkspace('万象城四台收银机每天下午四点断线');
+  const a = createWorkspace('示范门店四台收银机每天下午四点断线');
   const b = createWorkspace('会员积分接口现在同步写，结算老是拖延');
   const c = createWorkspace('供应商对账金额差了两毛三分钱');
   const list = [a, b, c];
@@ -99,8 +99,8 @@ ok('凝聚度 >= 0.12', cohesion >= 0.12, 'cohesion ' + cohesion);
 
 // 合并：轮数、记忆、关键词合并，来源区不被清空。
 {
-  const from = createWorkspace('瑞祥卡券核销时报券码已使用');
-  const into = createWorkspace('瑞祥卡券后台状态不对');
+  const from = createWorkspace('示范卡券核销时报券码已使用');
+  const into = createWorkspace('示范卡券后台状态不对');
   from.rounds = 2; into.rounds = 3; from.hits = 1; into.hits = 2;
   from.memories.push({ id: 'x', type: 'fact', text: '券码状态' });
   from.keywords.push('专属词');

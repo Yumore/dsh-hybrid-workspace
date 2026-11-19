@@ -15,14 +15,14 @@ mkdirSync(v1Dir, { recursive: true });
 const v1 = {
   version: 1,
   workspaces: [{
-    id: 'ws_v1', name: 'imPOS 收银终端', description: '商业收银终端、驱动、全国线上运维',
-    keywords: ['impos', '收银'], summary: '终端 3.2.1 在万象城 4G 链路偶发掉线',
+    id: 'ws_v1', name: '零售收银终端', description: '商业收银终端、驱动、全国线上运维',
+    keywords: ['retail', '收银'], summary: '终端 3.2.1 在示范门店 4G 链路偶发掉线',
     turns: [
-      { role: 'user', text: '万象城收银机又掉线了', round: 1, at: 100 },
+      { role: 'user', text: '示范门店收银机又掉线了', round: 1, at: 100 },
       { role: 'assistant', text: '先看 net.log 的 reconnect 记录', round: 1, at: 101 },
     ],
     ledger: [
-      { round: 2, text: '结论：终端 3.2.1 在万象城 4G 链路偶发掉线，先查设备端 net.log', keys: ['万象城', '终端', 'net.log'], at: 200 },
+      { round: 2, text: '结论：终端 3.2.1 在示范门店 4G 链路偶发掉线，先查设备端 net.log', keys: ['示范门店', '终端', 'net.log'], at: 200 },
       { round: 3, text: '下一步需要把 reconnect 间隔改成 30 秒', keys: ['reconnect', '间隔'], at: 300 },
     ],
     rounds: 3, hits: 4, createdAt: 1, updatedAt: 400,
@@ -43,11 +43,11 @@ ok('首次加载发生迁移', !!first.migratedFrom, String(first.migratedFrom))
 ok('状态版本为 2', first.state.version === STATE_VERSION, String(first.state.version));
 ok('工作区数量迁移', first.state.workspaces.length === 1, String(first.state.workspaces.length));
 const ws = first.state.workspaces[0];
-ok('工作区名字保留', ws.name === 'imPOS 收银终端', ws.name);
+ok('工作区名字保留', ws.name === '零售收银终端', ws.name);
 ok('ledger 转结构化记忆', ws.memories.length >= 2, String(ws.memories.length));
 ok('结论记为 decision', ws.memories.some(m => m.type === 'decision' && m.text.includes('4G')), ws.memories.map(m => m.type).join(','));
 ok('记忆来源标记 v1-ledger', ws.memories.some(m => m.source === 'v1-ledger'));
-ok('用户轮次转为 exemplar', ws.exemplars.some(e => e.text.includes('万象城')));
+ok('用户轮次转为 exemplar', ws.exemplars.some(e => e.text.includes('示范门店')));
 ok('turn 的 round 保留', ws.turns[0].round === 1, JSON.stringify(ws.turns[0]));
 ok('会话绑定迁移', first.state.sessions.s1?.workspaceId === 'ws_v1', JSON.stringify(first.state.sessions));
 ok('归档迁移', first.state.archives.length === 1 && first.state.archives[0].name === '旧供应商对账');

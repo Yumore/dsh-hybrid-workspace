@@ -1,0 +1,545 @@
+{
+  "source": "synthetic; 12 topics, 108 questions; no production credentials, stores, members, or device IDs",
+  "questions": [
+    {
+      "id": "syn-001",
+      "topic": "network",
+      "question": "一号店收银机每天下午四点断线，net.log 里 reconnect 记录对不上"
+    },
+    {
+      "id": "syn-002",
+      "topic": "network",
+      "question": "二号店收银机断线后 session 表里 sessionid 每隔几分钟变一次"
+    },
+    {
+      "id": "syn-003",
+      "topic": "network",
+      "question": "三号店四台收银机同时掉线，先查 4G 链路心跳"
+    },
+    {
+      "id": "syn-004",
+      "topic": "network",
+      "question": "北区门店收银机断线重启后又恢复，怀疑网络抖动"
+    },
+    {
+      "id": "syn-005",
+      "topic": "network",
+      "question": "南区门店收银机频繁断线，net.log 显示 reconnect 超时"
+    },
+    {
+      "id": "syn-006",
+      "topic": "network",
+      "question": "示范门店收银机断线时收银台提示网络异常"
+    },
+    {
+      "id": "syn-007",
+      "topic": "network",
+      "question": "东区门店收银机断线后订单上传失败，需要补传"
+    },
+    {
+      "id": "syn-008",
+      "topic": "network",
+      "question": "西区门店收银机断线，排查 4G 路由和心跳间隔"
+    },
+    {
+      "id": "syn-009",
+      "topic": "points",
+      "question": "会员积分接口现在同步写，结算老是拖延"
+    },
+    {
+      "id": "syn-010",
+      "topic": "points",
+      "question": "会员积分接口扣减要不要改成异步队列"
+    },
+    {
+      "id": "syn-011",
+      "topic": "points",
+      "question": "会员积分接口重写后结算顺序怎么保证"
+    },
+    {
+      "id": "syn-012",
+      "topic": "points",
+      "question": "会员积分接口并发扣减出现负积分"
+    },
+    {
+      "id": "syn-013",
+      "topic": "points",
+      "question": "会员积分接口回滚失败，积分和订单不一致"
+    },
+    {
+      "id": "syn-014",
+      "topic": "points",
+      "question": "会员积分接口批量导入时超时"
+    },
+    {
+      "id": "syn-015",
+      "topic": "points",
+      "question": "会员积分接口查询慢，结算页面卡住"
+    },
+    {
+      "id": "syn-016",
+      "topic": "points",
+      "question": "会员积分接口新增冻结积分字段，结算逻辑要改"
+    },
+    {
+      "id": "syn-017",
+      "topic": "reconcile",
+      "question": "供应商对账金额差了两毛三分钱"
+    },
+    {
+      "id": "syn-018",
+      "topic": "reconcile",
+      "question": "供应商对账的采购单和发票金额对不上怎么核"
+    },
+    {
+      "id": "syn-019",
+      "topic": "reconcile",
+      "question": "供应商对账差异要按单据号逐条查吗"
+    },
+    {
+      "id": "syn-020",
+      "topic": "reconcile",
+      "question": "供应商对账报表导出的合计和明细不一致"
+    },
+    {
+      "id": "syn-021",
+      "topic": "reconcile",
+      "question": "供应商对账月末结账前发现漏了一张退货单"
+    },
+    {
+      "id": "syn-022",
+      "topic": "reconcile",
+      "question": "供应商对账的税率和含税金额计算规则"
+    },
+    {
+      "id": "syn-023",
+      "topic": "reconcile",
+      "question": "供应商对账差异超过阈值要不要自动挂起"
+    },
+    {
+      "id": "syn-024",
+      "topic": "reconcile",
+      "question": "供应商对账接口返回的金额精度丢失"
+    },
+    {
+      "id": "syn-025",
+      "topic": "coupon",
+      "question": "会员卡券核销时报券码已使用"
+    },
+    {
+      "id": "syn-026",
+      "topic": "coupon",
+      "question": "会员卡券的券码状态在后台显示未核销"
+    },
+    {
+      "id": "syn-027",
+      "topic": "coupon",
+      "question": "会员卡券核销接口返回 500 怎么排查"
+    },
+    {
+      "id": "syn-028",
+      "topic": "coupon",
+      "question": "会员卡券核销后订单退款，券要不要退回"
+    },
+    {
+      "id": "syn-029",
+      "topic": "coupon",
+      "question": "会员卡券跨店核销提示不在适用门店"
+    },
+    {
+      "id": "syn-030",
+      "topic": "coupon",
+      "question": "会员卡券核销流水和财务对不上"
+    },
+    {
+      "id": "syn-031",
+      "topic": "coupon",
+      "question": "会员卡券批量核销时部分失败"
+    },
+    {
+      "id": "syn-032",
+      "topic": "coupon",
+      "question": "会员卡券核销时间早于订单创建时间"
+    },
+    {
+      "id": "syn-033",
+      "topic": "printer",
+      "question": "前台小票打印机打不出小票"
+    },
+    {
+      "id": "syn-034",
+      "topic": "printer",
+      "question": "小票打印机重连后小票模板变成空白"
+    },
+    {
+      "id": "syn-035",
+      "topic": "printer",
+      "question": "小票打印机的小票模板里门店名称取错了"
+    },
+    {
+      "id": "syn-036",
+      "topic": "printer",
+      "question": "小票打印机缺纸后一直报错"
+    },
+    {
+      "id": "syn-037",
+      "topic": "printer",
+      "question": "小票打印机打印出来的金额少了小数点"
+    },
+    {
+      "id": "syn-038",
+      "topic": "printer",
+      "question": "小票打印机换纸后走纸位置偏移"
+    },
+    {
+      "id": "syn-039",
+      "topic": "printer",
+      "question": "小票打印机 USB 转串口驱动不识别"
+    },
+    {
+      "id": "syn-040",
+      "topic": "printer",
+      "question": "小票打印机偶尔打印半截就停"
+    },
+    {
+      "id": "syn-041",
+      "topic": "boot",
+      "question": "收银机开机黑屏进不了系统"
+    },
+    {
+      "id": "syn-042",
+      "topic": "boot",
+      "question": "收银机开机换了电源适配器还是黑屏"
+    },
+    {
+      "id": "syn-043",
+      "topic": "boot",
+      "question": "收银机开机时风扇转但屏幕没信号"
+    },
+    {
+      "id": "syn-044",
+      "topic": "boot",
+      "question": "收银机开机卡在品牌 logo 界面"
+    },
+    {
+      "id": "syn-045",
+      "topic": "boot",
+      "question": "收银机开机后屏幕闪烁，外接显示器正常"
+    },
+    {
+      "id": "syn-046",
+      "topic": "boot",
+      "question": "收银机开机黑屏但后台能 ping 通"
+    },
+    {
+      "id": "syn-047",
+      "topic": "boot",
+      "question": "收银机开机黑屏，重插内存条后恢复"
+    },
+    {
+      "id": "syn-048",
+      "topic": "boot",
+      "question": "收银机开机黑屏，怀疑主板电容故障"
+    },
+    {
+      "id": "syn-049",
+      "topic": "shift",
+      "question": "门店交接班报表金额对不上"
+    },
+    {
+      "id": "syn-050",
+      "topic": "shift",
+      "question": "门店交接班时现金和系统差 200"
+    },
+    {
+      "id": "syn-051",
+      "topic": "shift",
+      "question": "门店交接班报表要按收银员拆分吗"
+    },
+    {
+      "id": "syn-052",
+      "topic": "shift",
+      "question": "门店交接班后上一班次的订单还挂在当前班次"
+    },
+    {
+      "id": "syn-053",
+      "topic": "shift",
+      "question": "门店交接班报表的优惠金额没有计入"
+    },
+    {
+      "id": "syn-054",
+      "topic": "shift",
+      "question": "门店交接班时未结账订单怎么处理"
+    },
+    {
+      "id": "syn-055",
+      "topic": "shift",
+      "question": "门店交接班报表导出失败"
+    },
+    {
+      "id": "syn-056",
+      "topic": "shift",
+      "question": "门店交接班时间跨零点，报表归属日期错误"
+    },
+    {
+      "id": "syn-057",
+      "topic": "payment",
+      "question": "微信支付回调超时导致订单未支付"
+    },
+    {
+      "id": "syn-058",
+      "topic": "payment",
+      "question": "微信支付对账单和系统订单差一笔"
+    },
+    {
+      "id": "syn-059",
+      "topic": "payment",
+      "question": "微信支付回调重试机制怎么设"
+    },
+    {
+      "id": "syn-060",
+      "topic": "payment",
+      "question": "支付宝回调重复通知导致重复入账"
+    },
+    {
+      "id": "syn-061",
+      "topic": "payment",
+      "question": "支付回调验签失败，订单一直待支付"
+    },
+    {
+      "id": "syn-062",
+      "topic": "payment",
+      "question": "支付回调丢失后如何手动补单"
+    },
+    {
+      "id": "syn-063",
+      "topic": "payment",
+      "question": "支付回调并发更新订单状态覆盖"
+    },
+    {
+      "id": "syn-064",
+      "topic": "payment",
+      "question": "支付回调日志里 traceId 对不上"
+    },
+    {
+      "id": "syn-065",
+      "topic": "scale",
+      "question": "电子秤称重后条码打出来没价格"
+    },
+    {
+      "id": "syn-066",
+      "topic": "scale",
+      "question": "电子秤称重商品的条码规则是什么"
+    },
+    {
+      "id": "syn-067",
+      "topic": "scale",
+      "question": "电子秤称重和小票打印机怎么连"
+    },
+    {
+      "id": "syn-068",
+      "topic": "scale",
+      "question": "电子秤称重数值跳变，稳定后仍偏差"
+    },
+    {
+      "id": "syn-069",
+      "topic": "scale",
+      "question": "电子秤条码前缀和商品编码冲突"
+    },
+    {
+      "id": "syn-070",
+      "topic": "scale",
+      "question": "电子秤换电池后时间不准确"
+    },
+    {
+      "id": "syn-071",
+      "topic": "scale",
+      "question": "电子秤称重接口返回超时"
+    },
+    {
+      "id": "syn-072",
+      "topic": "scale",
+      "question": "电子秤称重单位磅和公斤切换错误"
+    },
+    {
+      "id": "syn-073",
+      "topic": "inventory",
+      "question": "库存盘点后数量没有同步到前台"
+    },
+    {
+      "id": "syn-074",
+      "topic": "inventory",
+      "question": "库存盘点的差异要不要生成调整单"
+    },
+    {
+      "id": "syn-075",
+      "topic": "inventory",
+      "question": "库存盘点同步接口多久跑一次"
+    },
+    {
+      "id": "syn-076",
+      "topic": "inventory",
+      "question": "库存盘点时扫码枪重复扫同一商品"
+    },
+    {
+      "id": "syn-077",
+      "topic": "inventory",
+      "question": "库存盘点单提交后无法撤销"
+    },
+    {
+      "id": "syn-078",
+      "topic": "inventory",
+      "question": "库存盘点数量和财务库存对不上"
+    },
+    {
+      "id": "syn-079",
+      "topic": "inventory",
+      "question": "库存盘点分批提交时锁库失败"
+    },
+    {
+      "id": "syn-080",
+      "topic": "inventory",
+      "question": "库存盘点差异超过阈值需要审批"
+    },
+    {
+      "id": "syn-081",
+      "topic": "storedvalue",
+      "question": "会员储值退款后余额没有回滚"
+    },
+    {
+      "id": "syn-082",
+      "topic": "storedvalue",
+      "question": "会员储值退款要不要审批"
+    },
+    {
+      "id": "syn-083",
+      "topic": "storedvalue",
+      "question": "会员储值余额和退款单对不上"
+    },
+    {
+      "id": "syn-084",
+      "topic": "storedvalue",
+      "question": "会员储值退款部分退款后赠送金额怎么扣"
+    },
+    {
+      "id": "syn-085",
+      "topic": "storedvalue",
+      "question": "会员储值退款接口超时但实际已退款"
+    },
+    {
+      "id": "syn-086",
+      "topic": "storedvalue",
+      "question": "会员储值退款后积分没有回收"
+    },
+    {
+      "id": "syn-087",
+      "topic": "storedvalue",
+      "question": "会员储值退款跨门店操作失败"
+    },
+    {
+      "id": "syn-088",
+      "topic": "storedvalue",
+      "question": "会员储值退款重复提交"
+    },
+    {
+      "id": "syn-089",
+      "topic": "pricing",
+      "question": "商品变价后前台价格没有更新"
+    },
+    {
+      "id": "syn-090",
+      "topic": "pricing",
+      "question": "商品变价生效时间应该按门店时区吗"
+    },
+    {
+      "id": "syn-091",
+      "topic": "pricing",
+      "question": "商品变价和促销价冲突时以哪个为准"
+    },
+    {
+      "id": "syn-092",
+      "topic": "pricing",
+      "question": "商品批量变价时部分商品失败"
+    },
+    {
+      "id": "syn-093",
+      "topic": "pricing",
+      "question": "商品变价后历史订单金额被重算"
+    },
+    {
+      "id": "syn-094",
+      "topic": "pricing",
+      "question": "商品变价审核流程太长"
+    },
+    {
+      "id": "syn-095",
+      "topic": "pricing",
+      "question": "商品变价同步到收银机延迟"
+    },
+    {
+      "id": "syn-096",
+      "topic": "pricing",
+      "question": "商品变价撤销后价格没有回滚"
+    },
+    {
+      "id": "syn-097",
+      "topic": "network",
+      "question": "西区门店收银机断线，排查 4G 路由和心跳间隔"
+    },
+    {
+      "id": "syn-098",
+      "topic": "points",
+      "question": "会员积分接口新增冻结积分字段，结算逻辑要改"
+    },
+    {
+      "id": "syn-099",
+      "topic": "reconcile",
+      "question": "供应商对账接口返回的金额精度丢失"
+    },
+    {
+      "id": "syn-100",
+      "topic": "coupon",
+      "question": "会员卡券核销时间早于订单创建时间"
+    },
+    {
+      "id": "syn-101",
+      "topic": "printer",
+      "question": "小票打印机偶尔打印半截就停"
+    },
+    {
+      "id": "syn-102",
+      "topic": "boot",
+      "question": "收银机开机黑屏，怀疑主板电容故障"
+    },
+    {
+      "id": "syn-103",
+      "topic": "shift",
+      "question": "门店交接班时间跨零点，报表归属日期错误"
+    },
+    {
+      "id": "syn-104",
+      "topic": "payment",
+      "question": "支付回调日志里 traceId 对不上"
+    },
+    {
+      "id": "syn-105",
+      "topic": "scale",
+      "question": "电子秤称重单位磅和公斤切换错误"
+    },
+    {
+      "id": "syn-106",
+      "topic": "inventory",
+      "question": "库存盘点差异超过阈值需要审批"
+    },
+    {
+      "id": "syn-107",
+      "topic": "storedvalue",
+      "question": "会员储值退款重复提交"
+    },
+    {
+      "id": "syn-108",
+      "topic": "pricing",
+      "question": "商品变价撤销后价格没有回滚"
+    }
+  ]
+}

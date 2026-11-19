@@ -70,25 +70,25 @@ v2 状态在 `$DSH_HOME/hybrid-workspace-v2/state.json`，原子写 + 300ms 防�
 
 ## 3. 指标
 
-### 3.1 真实问题离线回放
+### 3.1 合成问题离线回放
 
-数据：`test/fixtures/real-questions.json`，103 条（来自 105 条真实案例，2 行解析失败），76 个不同问题。
+数据：`test/fixtures/synthetic-questions.json`，108 条（12 个主题 × 8 条 + 每主题 1 条重复），全部虚构门店与业务描述。
 
-| 指标 | v1 legacy | v2 |
-| --- | --- | --- |
-| 工作区数 | 30 | 26 |
-| 最大区占比 topShare | .23 | .17 |
-| 单例工作区 | 14 | 8 |
-| 平均轮数 | 3.5 | 3.96 |
-| cohesion | .311 | .236 |
-| 12 组人工话题 purity | .92 | 1.00 |
-| 12 组人工话题 spread | 1.3 | 1.0 |
+| 指标 | 结果 |
+| --- | --- |
+| 工作区数 | 11 |
+| 最大区占比 topShare | .17 |
+| 单例工作区 | 0 |
+| 平均轮数 | 9.82 |
+| cohesion | .199 |
+| 12 组人工话题 purity | .97 |
+| 12 组人工话题 spread | 1.1 |
 
-解读：v2 明显减少碎片（单例 14→8、topShare .23→.17），人工话题不再被拆开；cohesion 下降是因为 v1 的账本把更多轮次留在同一区，而 v2 更早把重复工单归并/压缩，指标定义对两者不完全等价，不能只看这一个数。
+解读：合成集上不再出现大量单例区，topShare 也被压到 .17；同一问题重复出现时全部回原区。purity .97 说明仍有一组话题会被相邻业务描述吸走，面板可手动合并/拆分。
 
 ### 3.2 合成话题
 
-12 组话题、每组 3 条，共 36 条：同组同区 36/36，purity 1，spread 1，10 个工作区。仍会把「收银机断线」与「开机黑屏」、「DTP 打印机」与「前台小票打印机」合并为同域区，面板可手动拆。
+12 组话题、每组 3 条，共 36 条：同组同区 36/36，purity 1，spread 1，10 个工作区。仍会把「收银机断线」与「开机黑屏」、「门诊药房打印机」与「前台小票打印机」合并为同域区，面板可手动拆。
 
 ### 3.3 200 轮投影基准（v1 账本，供 v2 预算参考）
 
@@ -115,7 +115,7 @@ v2 状态在 `$DSH_HOME/hybrid-workspace-v2/state.json`，原子写 + 300ms 防�
 
 ```bash
 cd dsh-hybrid-workspace-v2
-node test/eval-real.mjs
+node test/eval-synth.mjs
 node test/router.test.mjs
 node test/core.test.mjs
 ```

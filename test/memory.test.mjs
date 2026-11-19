@@ -10,7 +10,7 @@ const ok = (name, cond, detail = '') => {
 ok('用户问句判为 question', classifyType('会员积分接口扣减要不要改成异步队列', 'user') === 'question');
 ok('助手结论判为 decision', classifyType('结论：会员积分接口改成异步队列', 'assistant') === 'decision');
 
-const extracted = extractMemories('排查结论：万象城收银机断线是 4G 链路心跳超时导致。下一步需要把 net.log 的 reconnect 间隔改成 30 秒。', { role: 'assistant', turn: 4, max: 3 });
+const extracted = extractMemories('排查结论：示范门店收银机断线是 4G 链路心跳超时导致。下一步需要把 net.log 的 reconnect 间隔改成 30 秒。', { role: 'assistant', turn: 4, max: 3 });
 ok('抽取助手结论与待办', extracted.length >= 2, String(extracted.length));
 ok('至少一条 decision', extracted.some(m => m.type === 'decision'), extracted.map(m => m.type).join(','));
 ok('结论保留 4G 实体', extracted.some(m => m.text.includes('4G')));
@@ -31,12 +31,12 @@ ok('新结论取代旧结论', sup.some(o => o.op === 'supersede'), sup.map(o =>
 ok('旧记忆标记 superseded', ws.memories.some(m => m.status === 'superseded'));
 ok('stats 记录 superseded', stats(ws).superseded >= 1, JSON.stringify(stats(ws)));
 
-const ws2 = createWorkspace('万象城收银机断线');
-rememberText(ws2, '结论：万象城收银机断线是 4G 链路心跳超时导致，要查 net.log 的 reconnect 记录。', { role: 'assistant', turn: 1 });
+const ws2 = createWorkspace('示范门店收银机断线');
+rememberText(ws2, '结论：示范门店收银机断线是 4G 链路心跳超时导致，要查 net.log 的 reconnect 记录。', { role: 'assistant', turn: 1 });
 rememberText(ws2, '会员积分接口改成异步队列，结算顺序按创建时间排。', { role: 'assistant', turn: 2 });
 rememberText(ws2, '供应商对账金额差了两毛三分钱，按单据号逐条核。', { role: 'assistant', turn: 3 });
-const got = retrieve(ws2, '万象城收银机断线怎么排查', { k: 2, now: Date.now(), turnsBack: 20 });
-ok('检索命中相关记忆', got.memories.some(m => m.text.includes('万象城')), got.memories.map(m => m.text.slice(0, 12)).join('|'));
+const got = retrieve(ws2, '示范门店收银机断线怎么排查', { k: 2, now: Date.now(), turnsBack: 20 });
+ok('检索命中相关记忆', got.memories.some(m => m.text.includes('示范门店')), got.memories.map(m => m.text.slice(0, 12)).join('|'));
 ok('检索返回总数', got.total >= 3, String(got.total));
 
 const ws3 = createWorkspace('待办测试');
@@ -47,7 +47,7 @@ ok('未决事项单独列出', open.openItems.length >= 1, JSON.stringify(open.o
 const ws4 = createWorkspace('压缩测试');
 for (let i = 1; i <= 30; i++) {
   ws4.rounds = i;
-  ws4.turns.push({ role: i % 2 ? 'user' : 'assistant', text: '第 ' + i + ' 轮：万象城收银机断线，net.log 里 reconnect 每隔几分钟变一次，结论是 4G 心跳超时。', round: i });
+  ws4.turns.push({ role: i % 2 ? 'user' : 'assistant', text: '第 ' + i + ' 轮：示范门店收银机断线，net.log 里 reconnect 每隔几分钟变一次，结论是 4G 心跳超时。', round: i });
 }
 const ep = compactTurns(ws4, { compactAt: 24, keepTurns: 12 });
 ok('超阈值压缩出 episode', !!ep && ep.type === 'episode');
