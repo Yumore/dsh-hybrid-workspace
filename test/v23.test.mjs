@@ -4,6 +4,7 @@ import { agent, firePre, makeCtx, sleep, tempHome } from './fake-ctx.mjs';
 import { buildTimeline } from '../lib/timeline.js';
 import { normalizePolicy, contextCfgFor } from '../lib/policy.js';
 import { toMarkdown, parsePortable } from '../lib/portable.js';
+import { normalizeMemory } from '../lib/lifecycle.js';
 
 let fails = 0;
 const ok = (name, cond, detail = '') => {
@@ -16,6 +17,9 @@ const p = normalizePolicy({ contextMaxChars: 400, memoryInject: 99, autoSwitch: 
 ok('策略夹取到合法范围', p.contextMaxChars === 600 && p.memoryInject === 20 && p.autoSwitch === false, JSON.stringify(p));
 const c = contextCfgFor({ policy: { contextMaxChars: 900, memoryInject: 2 } }, { contextMaxChars: 2400, memoryInject: 8, contextMinChars: 800 });
 ok('策略覆盖全局预算', c.contextMaxChars === 900 && c.memoryInject === 2 && c.contextMinChars === 800, JSON.stringify(c));
+ok('字符串 false 能关掉自动切走', normalizePolicy({ autoSwitch: 'false' }).autoSwitch === false);
+ok('数字 0 / no 能关掉自动切走', normalizePolicy({ autoSwitch: 0 }).autoSwitch === false && normalizePolicy({ autoSwitch: 'no' }).autoSwitch === false);
+ok('未知布尔值回落默认 true', normalizePolicy({ autoSwitch: 'maybe' }).autoSwitch === true);
 const t0 = Date.now();
 const chain = buildTimeline({ memories: [
   { id: 'm_old', text: '旧口径：库存 10', type: 'decision', status: 'superseded', supersededBy: 'm_new', turn: 1, at: t0 - 1000 },
@@ -28,9 +32,57 @@ const chain3 = buildTimeline({ memories: [
   { id: 'm_c', text: '最新口径 C', type: 'decision', status: 'active', turn: 3, at: t0 },
 ] });
 ok('时间线不重复生成子链', chain3.chains.length === 1 && chain3.chains[0].nodes.length === 3 && chain3.chains[0].nodes[0].id === 'm_a', JSON.stringify(chain3));
+const chain4 = buildTimeline({ memories: [
+  { id: 'm_first', text: '旧结论', type: 'decision', status: 'superseded', supersededBy: 'm_second', turn: 1, at: t0 },
+  { id: 'm_second', text: '新结论', type: 'decision', status: 'active', turn: 2, at: t0 - 5000 },
+] });
+ok('时间线按指针而非时间戳排序', chain4.chains[0]?.nodes?.[0]?.id === 'm_first' && chain4.chains[0]?.nodes?.[1]?.id === 'm_second', JSON.stringify(chain4));
 const md = toMarkdown([{ id: 'ws_md', name: '导出样例', description: '边界', keywords: ['断线'], summary: '', rounds: 1, turns: [{ role: 'user', text: '收银机断线', turn: 1, at: t0 }], memories: [{ id: 'm_md', type: 'fact', text: '断线先查 net.log', keys: ['断线'], status: 'active', tier: 'durable', scope: 'workspace', turn: 1, at: t0 }] }]);
 const parsed = parsePortable(md);
 ok('Markdown 导出可回读', parsed.workspaces.length === 1 && parsed.workspaces[0].turns[0].text.includes('收银机') && parsed.workspaces[0].memories[0].text.includes('net.log'), JSON.stringify(parsed.error || parsed.workspaces.length));
+const mdTwo = toMarkdown([
+  { id: 'ws_a', name: 'A 区', description: '第一区', keywords: ['A'], summary: '', rounds: 1, turns: [{ role: 'user', text: 'A 的最后一句', turn: 1, at: t0 }], memories: [] },
+  { id: 'ws_b', name: 'B 区', description: '第二区', keywords: ['B'], summary: '', rounds: 1, turns: [{ role: 'user', text: 'B 的第一句', turn: 1, at: t0 }], memories: [] },
+]);
+const pTwo = parsePortable(mdTwo);
+ok('Markdown 多文档不把分隔符读进正文', pTwo.workspaces.length === 2 && pTwo.workspaces[0].turns[0].text === 'A 的最后一句' && pTwo.workspaces[1].turns[0].text === 'B 的第一句', JSON.stringify(pTwo.workspaces.map(w => w.turns?.[0]?.text)));
+const mdChain = toMarkdown([{
+  id: 'ws_chain', name: '演变区', description: '', keywords: [], summary: '', rounds: 2,
+  turns: [],
+  memories: [
+    { id: 'm_chain_old', type: 'decision', text: '旧口径：库存 10', turn: 1, at: t0 - 1000, status: 'superseded', supersededBy: 'm_chain_new', tier: 'durable', scope: 'workspace' },
+    { id: 'm_chain_new', type: 'decision', text: '新口径：库存 20', turn: 2, at: t0, status: 'active', supersedes: 'm_chain_old', tier: 'durable', scope: 'workspace' },
+  ],
+}]);
+const pChain = parsePortable(mdChain);
+const cm = pChain.workspaces?.[0]?.memories || [];
+const oldM = cm.find(m => m.text.includes('库存 10'));
+const newM = cm.find(m => m.text.includes('库存 20'));
+ok('Markdown 保留取代链', oldM && newM && newM.supersedes === oldM.id && oldM.supersededBy === newM.id, JSON.stringify(cm.map(m => ({ id: m.id, s: m.supersedes, b: m.supersededBy }))));
+const nm = normalizeMemory({ id: 'm_arch', text: '归档记忆', status: 'archived', archivedAt: t0 - 1, archiveReason: 'trim' }, { now: t0 });
+ok('normalizeMemory 保留归档元数据', nm.archivedAt === t0 - 1 && nm.archiveReason === 'trim', JSON.stringify({ archivedAt: nm.archivedAt, archiveReason: nm.archiveReason }));
+
+const mdFull = toMarkdown([{
+  id: 'ws_full', name: '完整导出', description: '边界', keywords: ['断线', '库存'], summary: '摘要', rounds: 2,
+  hits: 7, createdAt: t0 - 2000, updatedAt: t0 - 1000,
+  turns: [{ role: 'user', text: '收银机断线', turn: 1, at: t0 }],
+  memories: [{
+    id: 'm_full', type: 'fact', text: '库存盘点\n- 状态：这是正文\n下一步', keys: ['库存'], entities: ['门店A'],
+    importance: 4, source: 'user', turn: 2, at: t0, status: 'archived', tier: 'durable', scope: 'workspace',
+    pinned: true, createdAt: t0 - 3000, updatedAt: t0 - 2500, archivedAt: t0 - 1500, archiveReason: 'trim',
+    pinnedAt: t0 - 1200, restoredAt: t0 - 900,
+    origin: { sessionId: 'sess-1', turn: 2, role: 'user' },
+    supersedes: '', supersededBy: '',
+  }],
+}]);
+const parsedFull = parsePortable(mdFull);
+const fw = parsedFull.workspaces?.[0];
+const fm = fw?.memories?.[0];
+ok('Markdown 保留工作区计数与关键词', fw?.hits === 7 && fw?.createdAt === t0 - 2000 && fw?.updatedAt === t0 - 1000 && fw?.keywords?.includes('库存'), JSON.stringify(fw && { hits: fw.hits, created: fw.createdAt, keywords: fw.keywords }));
+ok('Markdown 正文里的“- 状态：”不被当元数据', String(fm?.text || '').includes('- 状态：这是正文') && fm?.status === 'archived', JSON.stringify(fm?.text));
+ok('Markdown 保留来源/实体/重要性', fm?.source === 'user' && fm?.importance === 4 && fm?.entities?.includes('门店A'), JSON.stringify(fm && { source: fm.source, importance: fm.importance, entities: fm.entities }));
+ok('Markdown 保留归档/置顶/恢复时间', fm?.archivedAt === t0 - 1500 && fm?.archiveReason === 'trim' && fm?.pinnedAt === t0 - 1200 && fm?.restoredAt === t0 - 900, JSON.stringify(fm && { archivedAt: fm.archivedAt, archiveReason: fm.archiveReason, pinnedAt: fm.pinnedAt, restoredAt: fm.restoredAt }));
+ok('Markdown 保留原始来源链', fm?.origin?.sessionId === 'sess-1' && fm?.origin?.turn === 2 && fm?.origin?.role === 'user', JSON.stringify(fm?.origin));
 
 // ── 插件：策略锁定、费用桥接、时间线、迁移排除、导出/导入 ──
 process.env.DSH_HOME = tempHome();

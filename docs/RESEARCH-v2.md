@@ -1,6 +1,6 @@
 # v2 调研与设计记录
 
-日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。2026-11-23 更新：补充多话题拆分、注入过滤、宿主插件去重、上下文迁移与 v2.3.1 真实回放结论。
+日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。2026-11-23 更新：补充多话题拆分、注入过滤、宿主插件去重、上下文迁移、v2.3.1 真实回放与 v2.3.2 全量复查结论。
 
 ## 1. 调研范围与结论
 
@@ -170,6 +170,18 @@ DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops �
 - 真实状态回放（本地 `.local/`，不随仓库发布）：2026-11-23 样本为 17 个工作区/4 个会话/2043 条记忆。连续问句样本（无空行/编号/连接词）修复前只拆 1 段，加入问号边界后拆成 3 段；但三段仍因同域词面相似落到同一已有区，说明“拆开”和“分区”是两件事。迁移 query 命中 4 轮/8 记忆，排除一条后 3 轮/8 记忆，执行后来源/目标守恒；跨语言（中文“插件”对英文 plugin）仍然漏搬。
 - 全量 17 套件（core / router / memory / migration / autocreate / state-corrupt / segment / filter / multi / lifecycle / migrate / review / regressions2 / v23 / eval-synth / ui-smoke / load-check）全部 PASS；另对面板内联脚本做 `new Function` 编译检查。
 
+### 3.9 v2.3.2 复查回归
+
+- P0：`lib/lifecycle.js` 的 `PROFILE_CUE` 去掉裸“一直/总是/以后/每次/默认”，只保留显式偏好表达；三条故障/陈述句实测回落 durable，真实偏好仍 profile/pinned。
+- P0：`lib/memory.js` 的记忆 id 纳入 `role`，consolidate 先按 id 查 active 并 noop；不同工作区同文记忆在自动 id 上再拼 `ws.id`，避免跨区串写。
+- P0：supersede 增加 `subjectConflict`：门店/订单/设备/版本等不同实体编号不互相取代；“接口超时是网络问题”与“接口超时是数据库连接池耗尽”同主语仍取代；“库存10/20”纯数值变化仍取代。
+- P1：`lib/store.js` 去掉 turns/profile/archives 的静默 slice，加载时严格校验 object 且 `workspaces` 为数组；`lib/context.js` 按段裁剪（recent→open→memories→profile，再缩 summary/description/keywords），600 字符预算与头部计数实测一致；`buildContext` 支持 `touch:false`，snapshot 不再续期 TTL。
+- P1：`lib/router.js` merge 与 `lib/migrate.js` apply 均按 `max(rounds,turns.length)` 续号，目标在前、来源偏移，去重保留目标；迁移只删真正搬走的条目并返回 skipped；预览 items/nearItems 不再截断。
+- P1：`lib/segment.js` 编号要求空白且非数字，版本号“1.0/2.0”不再被剥成“0 版本”；`lib/index.js` 导入/恢复超容量直接报错、不静默归档；sweep 回收 7 天以上无有效绑定的旧会话；`lib/ui.js` sameOrigin 校验回环 remoteAddress + Host。
+- P2：`lib/policy.js` 严格布尔与有限数；`lib/timeline.js` 按 supersededBy 指针顺序；`lib/ui.js` 后台标签跳过刷新并保留 details；`lib/portable.js` JSON/Markdown 补齐归档、置顶、恢复、来源、实体、重要性、创建/更新时间与编号，Markdown 多文档用空行连接、正文中的 `- 状态：` 不误判元数据；`package.json` 升 2.3.2、exports 加 `./lib/*`、`npm test` 指向 `test/all.mjs`。
+- 复查期间又修：Markdown 取代链缺 id、`---` 分隔符污染正文、`normalizeMemory` 丢 archivedAt/archiveReason、跨区同文记忆 id 冲突、头部档案计数、600 预算被 800 抬回。
+- 全量 17 套件（core / router / memory / migration / autocreate / state-corrupt / segment / filter / multi / lifecycle / migrate / review / regressions2 / v23 / eval-synth / ui-smoke / load-check）通过 `node test/all.mjs` 顺序执行，全部 PASS；面板内联脚本另做 `new Function` 编译检查。新增回归覆盖超容量导入/满额恢复/sweep、Markdown 取代链与多文档、归档元数据、实体冲突、openItems/pruneInactive、策略字符串 false、时间线指针顺序。
+
 ## 4. 未解决
 
 - **物理隔离（B 方案）**：主代理只路由，子代理带独立上下文回答并回摘要；DSH 侧需要 `ctx.subagents.startActivation` 或每区专用会话。面板无法替用户切会话，需客户端配合。见 `docs/plan-b.md`。
@@ -184,9 +196,8 @@ DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops �
 
 ```bash
 cd dsh-hybrid-workspace-v2
-node test/eval-synth.mjs
-node test/router.test.mjs
-node test/core.test.mjs
+node test/all.mjs            # 17 个入口顺序执行
+node test/all.mjs v23        # 只跑名字含 v23 的入口
 ```
 
 调研原文与链接见对话记录；外部页面只作为设计参考，未复制代码。

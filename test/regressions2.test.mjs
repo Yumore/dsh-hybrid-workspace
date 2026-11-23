@@ -129,12 +129,38 @@ try {
   const tgtWs = inst.state.workspaces.find(w => w.id === tgt.json.id);
   ok('合并目标包含来源内容', tgtWs?.turns?.some(t => t.text === '来源对话') && tgtWs?.memories?.some(m => m.text === '来源结论'));
 
+  const beforeOver = inst.state.workspaces.length;
+  const over = await post({
+    op: 'import',
+    content: JSON.stringify({
+      format: 'dsh-hybrid-workspace', version: 1,
+      workspaces: Array.from({ length: 60 }, (_, i) => ({ name: '超量导入 ' + i, turns: [{ role: 'user', text: '话题 ' + i, turn: 1 }] })),
+    }),
+  });
+  ok('超容量导入被拒绝', over.status === 400 && typeof over.json?.error === 'string' && inst.state.workspaces.length === beforeOver, JSON.stringify(over.json?.error || over.json));
+  ok('超容量导入不静默归档现有区', !inst.state.archives.some(a => a.reason === 'maxWorkspaces'));
+
+  const staleId = 'stale-session-for-sweep';
+  inst.state.sessions[staleId] = { workspaceId: 'ws_missing', routedAt: Date.now() - 8 * 24 * 3600 * 1000, pending: null, lastQuery: '', lastTurn: 0, recent: [] };
+  const sweeps = await post({ op: 'sweep' });
+  ok('sweep 回收未绑定旧会话', sweeps.status === 200 && !inst.state.sessions[staleId], JSON.stringify(sweeps.json));
+  ok('sweep 保留当前绑定会话', !!inst.state.sessions['reg-session']);
+
   const exp = await post({ op: 'export', all: true, format: 'json' });
   const exported = JSON.parse(exp.json.content || '{}');
   ok('导出包含全局档案', (exported.profile || []).length >= 1 && exp.json.profile >= 1, JSON.stringify({ profile: exported.profile?.length }));
   const html = await (await fetch(base + '/')).text();
   ok('迁移预览含按轮次全选', html.includes('round-all') && html.includes('data-round'));
   ok('费用标签说明最近 12 会话', html.includes('最近 12 会话合计') || html.includes('会话费用'));
+
+  // 满额恢复：先人为填到上限，再恢复归档，必须明确报错而不是静默挤掉别的区。
+  while (inst.state.workspaces.length < 60) {
+    const n = inst.state.workspaces.length;
+    inst.state.workspaces.push({ id: 'ws_fill_' + n, name: '填充区 ' + n, description: '', keywords: [], summary: '', turns: [], memories: [], exemplars: [], rounds: 0, hits: 0, createdAt: Date.now(), updatedAt: Date.now() });
+  }
+  const beforeRestore = inst.state.workspaces.length;
+  const fullRestore = await post({ op: 'restore', id: mergeArch.id });
+  ok('满额恢复被拒绝', fullRestore.status === 400 && typeof fullRestore.json?.error === 'string' && inst.state.workspaces.length === beforeRestore, JSON.stringify(fullRestore.json));
 } finally {
   server.close();
 }

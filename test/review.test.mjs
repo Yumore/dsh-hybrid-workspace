@@ -38,6 +38,22 @@ ok('高相似新事实取代旧事实', changed.op === 'supersede' && ws.memorie
 const restated = consolidate(ws, { ...base, id: 'm_same', text: '库存 20 台。', turn: 3, at: now + 2 }, { memoryKeep: 20 });
 ok('同结论复述不重复入库', restated.op === 'noop', restated.op);
 
+// 实体保护：不同门店/订单不能互相取代；同一实体换结论仍要取代。
+const wsEntity = { id: 'ws_entity', memories: [] };
+const entA = consolidate(wsEntity, { ...base, id: 'm_ent_a', text: '门店A的库存是10', turn: 1, at: now }, { memoryKeep: 20 });
+const entB = consolidate(wsEntity, { ...base, id: 'm_ent_b', text: '门店B的库存是20', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('不同门店的事实不互相取代', entB.op === 'add' && wsEntity.memories.find(m => m.id === entA.memory.id).status === 'active', entB.op);
+const entA2 = consolidate(wsEntity, { ...base, id: 'm_ent_a2', text: '门店A的库存是20', turn: 3, at: now + 2 }, { memoryKeep: 20 });
+ok('同一门店换库存仍取代', entA2.op === 'supersede', entA2.op);
+const wsPartial = { id: 'ws_partial', memories: [] };
+consolidate(wsPartial, { ...base, id: 'm_two', text: '门店A和门店B的库存分别是10和20', turn: 1, at: now }, { memoryKeep: 20 });
+const partial = consolidate(wsPartial, { ...base, id: 'm_one', text: '门店A的库存是30', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('实体集合不同不取代，避免丢掉另一个实体', partial.op === 'add' && wsPartial.memories.find(m => m.id === 'm_two').status === 'active', partial.op);
+const wsSubject = { id: 'ws_subject', memories: [] };
+consolidate(wsSubject, { ...base, id: 'm_sub1', text: '接口超时是网络问题', turn: 1, at: now }, { memoryKeep: 20 });
+const sub2 = consolidate(wsSubject, { ...base, id: 'm_sub2', text: '接口超时是数据库连接池耗尽', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('同一主语换根因仍取代', sub2.op === 'supersede', sub2.op);
+
 // ── 3. 超限时不硬删决策 ──
 const wsTrim = { memories: [] };
 for (let i = 0; i < 5; i++) {
@@ -46,6 +62,12 @@ for (let i = 0; i < 5; i++) {
 consolidate(wsTrim, { ...base, id: 'm_extra', text: '库存 99 台', turn: 9, at: now + 9 }, { memoryKeep: 2 });
 ok('trim 后决策仍保留在列表', wsTrim.memories.filter(m => m.type === 'decision').length === 5, String(wsTrim.memories.filter(m => m.type === 'decision').length));
 ok('trim 只把超限决策标 archived', wsTrim.memories.some(m => m.type === 'decision' && m.status === 'archived'));
+const wsMemA = { id: 'ws_a', memories: [] };
+const wsMemB = { id: 'ws_b', memories: [] };
+const shared = { type: 'fact', text: '同一句事实在不同区出现', keys: ['事实'], turn: 7, at: now, status: 'active', tier: 'durable', scope: 'workspace' };
+const mA = consolidate(wsMemA, { ...shared }).memory;
+const mB = consolidate(wsMemB, { ...shared }).memory;
+ok('不同工作区同文记忆 id 不冲突', mA.id !== mB.id, JSON.stringify([mA.id, mB.id]));
 
 // ── 4. 全局档案没有容器时跳过，不写进工作区 ──
 const wsGlobal = { memories: [] };

@@ -44,6 +44,11 @@ rememberText(ws3, '下一步需要验证会员积分接口的异步队列顺序�
 const open = retrieve(ws3, '完全无关的查询词', { k: 0, turnsBack: 10 });
 ok('未决事项单独列出', open.openItems.length >= 1, JSON.stringify(open.openItems.map(m => m.type)));
 
+const ws3b = createWorkspace('多项待办');
+for (let i = 1; i <= 6; i++) rememberText(ws3b, '下一步需要处理会员积分接口的第 ' + i + ' 项顺序验证。', { role: 'user', turn: i });
+const openPicked = retrieve(ws3b, '会员积分接口顺序验证', { k: 5, turnsBack: 10 });
+ok('已有待办被注入后未决列表仍不空', openPicked.memories.length === 5 && openPicked.openItems.length >= 1, JSON.stringify({ picked: openPicked.memories.length, open: openPicked.openItems.length }));
+
 const ws4 = createWorkspace('压缩测试');
 for (let i = 1; i <= 30; i++) {
   ws4.rounds = i;
@@ -61,6 +66,17 @@ for (let i = 0; i < topics.length; i++) {
 }
 const activeCount = ws5.memories.filter(m => m.status !== 'superseded').length;
 ok('memoryKeep 生效', activeCount <= 4, String(activeCount));
+
+const ws6 = createWorkspace('非活跃清理');
+const tOld = Date.now() - 1000000;
+for (let i = 0; i < 80; i++) {
+  ws6.memories.push({ id: 'm_inactive_' + i, type: 'fact', text: '旧归档事实 ' + i, status: 'archived', tier: 'durable', scope: 'workspace', turn: i, at: tOld + i, updatedAt: tOld + i });
+}
+ws6.memories.push({ id: 'm_old_decision', type: 'decision', text: '旧决策必须保留时间线', status: 'archived', tier: 'durable', scope: 'workspace', turn: 0, at: tOld - 1, updatedAt: tOld - 1 });
+rememberText(ws6, '结论：新的活跃结论进入工作区。', { role: 'assistant', turn: 100, cfg: { memoryKeep: 10 } });
+const inactive = ws6.memories.filter(m => m.status && m.status !== 'active');
+ok('非活跃记忆按上限清理', inactive.length <= 41, String(inactive.length));
+ok('清理不硬删旧决策', ws6.memories.some(m => m.id === 'm_old_decision'), ws6.memories.filter(m => m.type === 'decision').map(m => m.id).join(','));
 
 console.log(fails ? 'MEMORY FAIL ' + fails : 'MEMORY PASS');
 process.exit(fails ? 1 : 0);

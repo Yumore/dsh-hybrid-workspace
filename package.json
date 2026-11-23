@@ -1,7 +1,7 @@
 {
   "name": "dsh-hybrid-workspace-v2",
-  "version": "2.3.1",
-  "description": "单聊天框 + 多工作区上下文路由 v2.3.1：每区策略、导出导入（含全局档案）、trace 解释、迁移逐条勾选、cost-meter 可选桥接、结论演变、连续问句拆段",
+  "version": "2.3.2",
+  "description": "单聊天框 + 多工作区上下文路由 v2.3.2：每区策略、导出导入（含全局档案与来源链）、trace 解释、迁移逐条勾选、cost-meter 可选桥接、结论演变、连续问句拆段",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -17,7 +17,11 @@
     ".": {
       "default": "./lib/index.js"
     },
+    "./lib/*": "./lib/*",
     "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node test/all.mjs"
   },
   "files": [
     "lib",
