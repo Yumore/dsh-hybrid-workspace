@@ -54,6 +54,46 @@ consolidate(wsSubject, { ...base, id: 'm_sub1', text: '接口超时是网络问�
 const sub2 = consolidate(wsSubject, { ...base, id: 'm_sub2', text: '接口超时是数据库连接池耗尽', turn: 2, at: now + 1 }, { memoryKeep: 20 });
 ok('同一主语换根因仍取代', sub2.op === 'supersede', sub2.op);
 
+// 编号带字母/多位数、序数带不同名词，都不能被当成同一实体。
+const wsIds = { id: 'ws_ids', memories: [] };
+const idA1 = consolidate(wsIds, { ...base, id: 'm_id_a1', text: '门店A1的库存是10', turn: 1, at: now }, { memoryKeep: 20 });
+const idA2 = consolidate(wsIds, { ...base, id: 'm_id_a2', text: '门店A2的库存是20', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('门店A1/A2 不互相取代', idA2.op === 'add' && wsIds.memories.find(m => m.id === idA1.memory.id).status === 'active', idA2.op);
+const wsIds2 = { id: 'ws_ids2', memories: [] };
+consolidate(wsIds2, { ...base, id: 'm_id_n1b', text: '门店 1234 的库存是5', turn: 1, at: now }, { memoryKeep: 20 });
+const idN2 = consolidate(wsIds2, { ...base, id: 'm_id_n2', text: '门店 1235 的库存是8', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('门店 1234/1235 不互相取代', idN2.op === 'add' && wsIds2.memories.find(m => m.id === 'm_id_n1b').status === 'active', idN2.op);
+const wsOrd = { id: 'ws_ord', memories: [] };
+consolidate(wsOrd, { ...base, id: 'm_ord1', text: '3号店的库存是10', turn: 1, at: now }, { memoryKeep: 20 });
+const ord2 = consolidate(wsOrd, { ...base, id: 'm_ord2', text: '3号机的库存是20', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('3号店/3号机不互相取代', ord2.op === 'add' && wsOrd.memories.find(m => m.id === 'm_ord1').status === 'active', ord2.op);
+
+// 命名门店和超长同前缀不同主题也不能靠词面相似取代。
+const wsName = { id: 'ws_name', memories: [] };
+consolidate(wsName, { ...base, id: 'm_name_bj', text: '北京门店的库存是10', turn: 1, at: now }, { memoryKeep: 20 });
+const nameSh = consolidate(wsName, { ...base, id: 'm_name_sh', text: '上海门店的库存是20', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('北京门店/上海门店不互相取代', nameSh.op === 'add' && wsName.memories.find(m => m.id === 'm_name_bj').status === 'active', nameSh.op);
+// 没有“是/库存”分隔词时，名称同样要参与实体判断。
+const wsNameNoSep = { id: 'ws_name_nosep', memories: [] };
+consolidate(wsNameNoSep, { ...base, id: 'm_name_bj2', text: '北京门店库存10', turn: 1, at: now }, { memoryKeep: 20 });
+const nameNoSep = consolidate(wsNameNoSep, { ...base, id: 'm_name_sh2', text: '上海门店库存20', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('无分隔词时北京门店/上海门店仍不互相取代', nameNoSep.op === 'add' && wsNameNoSep.memories.find(m => m.id === 'm_name_bj2').status === 'active', nameNoSep.op);
+const wsNameSame = { id: 'ws_name_same', memories: [] };
+consolidate(wsNameSame, { ...base, id: 'm_name_bj3', text: '北京门店库存10', turn: 1, at: now }, { memoryKeep: 20 });
+const nameSame = consolidate(wsNameSame, { ...base, id: 'm_name_bj4', text: '北京门店库存20', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('无分隔词时同一北京门店换库存仍取代', nameSame.op === 'supersede' && wsNameSame.memories.find(m => m.id === 'm_name_bj3').status === 'superseded', nameSame.op);
+const wsLong = { id: 'ws_long', memories: [] };
+consolidate(wsLong, { ...base, id: 'm_long_a', text: '华润万象生活深圳万象城店今日上午收银机出现大面积掉线现象', turn: 1, at: now }, { memoryKeep: 20 });
+const longB = consolidate(wsLong, { ...base, id: 'm_long_b', text: '华润万象生活深圳万象城店今日上午会员积分活动正式上线开始', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+ok('相同前缀但不同主题不互相取代', longB.op === 'add' && wsLong.memories.find(m => m.id === 'm_long_a').status === 'active', longB.op);
+
+// 最高分候选是另一个实体时，要跳过它继续找同实体候选。
+const wsChain = { id: 'ws_chain', memories: [] };
+consolidate(wsChain, { ...base, id: 'm_chain_a', text: '门店A的库存是10', turn: 1, at: now }, { memoryKeep: 20 });
+consolidate(wsChain, { ...base, id: 'm_chain_b', text: '门店B的库存是20', turn: 2, at: now + 1 }, { memoryKeep: 20 });
+const chainC = consolidate(wsChain, { ...base, id: 'm_chain_c', text: '门店B的库存是30', turn: 3, at: now + 2 }, { memoryKeep: 20 });
+ok('跳过冲突候选后仍取代同实体旧结论', chainC.op === 'supersede' && wsChain.memories.find(m => m.id === 'm_chain_b').status === 'superseded' && wsChain.memories.find(m => m.id === 'm_chain_a').status === 'active', JSON.stringify(wsChain.memories.map(m => [m.id, m.status])));
+
 // ── 3. 超限时不硬删决策 ──
 const wsTrim = { memories: [] };
 for (let i = 0; i < 5; i++) {

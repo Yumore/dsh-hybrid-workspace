@@ -63,4 +63,24 @@ assert(wsAfter.turns.some(t => t.role === 'assistant' && t.text.includes('可见
 assert(!wsAfter.turns.some(t => String(t.text).includes('SECRET_REASONING')), '推理块不能写入 turns');
 assert(!(wsAfter.memories ?? []).some(m => String(m.text).includes('SECRET_REASONING')), '推理块不能写入 memories');
 
+// 子代理/PTC 子会话的 prompt 不能建区、不能写 turn/记忆。
+const sub = agent('66a0eb1c-7f64-45cb-86b3-92e341fa40c4');
+sub.session.agentPreset = 'ops-ptc';
+const subText = 'You are reviewing an already-shipped DSH plugin. Read-only: do not modify files.';
+await firePre(ctx, sub, subText, 1);
+await sleep(100);
+await inst.flush();
+st = stateOf(HOME);
+assert.equal(st.workspaces.length, 1, '子代理 prompt 不应建区');
+assert(!(st.workspaces[0].turns ?? []).some(t => String(t.text).includes('You are reviewing')), '子代理 prompt 不应写 turn');
+assert(!(st.workspaces[0].memories ?? []).some(m => String(m.text).includes('You are reviewing')), '子代理 prompt 不应写记忆');
+
+// 没有 preset 线索时，裸 UUID + 明确 review prompt 仍应被挡住。
+const sub2 = agent('5093b028-216a-46de-adee-1a157add423b');
+await firePre(ctx, sub2, 'You are reviewing an already-shipped DSH plugin. Read-only: do not modify files.', 1);
+await sleep(80);
+await inst.flush();
+st = stateOf(HOME);
+assert.equal(st.workspaces.length, 1, '裸 UUID 的 review 提示词不应建区');
+
 console.log('FILTER PASS');

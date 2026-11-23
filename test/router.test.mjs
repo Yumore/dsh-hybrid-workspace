@@ -97,6 +97,21 @@ ok('凝聚度 >= 0.12', cohesion >= 0.12, 'cohesion ' + cohesion);
   ok('强信号直接切换', ['strong-signal', 'same-topic'].includes(decideRoute({ workspaces: list, session: { workspaceId: a.id, pending: null }, text }).how));
 }
 
+// 优先 A/B/C：已有区能匹配时先路由，只有都不匹配才新建 D。
+{
+  const a2 = createWorkspace('示范门店收银机每天下午断线，需要排查 4G 链路');
+  const b2 = createWorkspace('会员积分接口扣减改成异步队列');
+  const c2 = createWorkspace('供应商对账金额差两毛三分钱，按单据号核对');
+  const list = [a2, b2, c2];
+  const run = (text) => decideRoute({ workspaces: list, session: { workspaceId: null, pending: null }, text, cfg: { autoSwitch: true } });
+  const hitA = run('门店A的收银机又掉线了');
+  const hitB = run('会员积分接口扣款失败');
+  const hitC = run('供应商对账差了三毛钱');
+  const miss = run('明天上午十点开会');
+  ok('有匹配时优先 A/B/C', hitA.action === 'route' && hitA.wsId === a2.id && hitB.action === 'route' && hitB.wsId === b2.id && hitC.action === 'route' && hitC.wsId === c2.id, JSON.stringify([hitA, hitB, hitC].map(d => [d.action, d.ws?.name])));
+  ok('都不匹配才新建 D', miss.action === 'new' && !miss.ws, miss.how);
+}
+
 // 合并：轮数、记忆、关键词合并，来源区不被清空。
 {
   const from = createWorkspace('示范卡券核销时报券码已使用');

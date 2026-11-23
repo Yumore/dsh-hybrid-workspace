@@ -84,6 +84,16 @@ ok('Markdown 保留来源/实体/重要性', fm?.source === 'user' && fm?.import
 ok('Markdown 保留归档/置顶/恢复时间', fm?.archivedAt === t0 - 1500 && fm?.archiveReason === 'trim' && fm?.pinnedAt === t0 - 1200 && fm?.restoredAt === t0 - 900, JSON.stringify(fm && { archivedAt: fm.archivedAt, archiveReason: fm.archiveReason, pinnedAt: fm.pinnedAt, restoredAt: fm.restoredAt }));
 ok('Markdown 保留原始来源链', fm?.origin?.sessionId === 'sess-1' && fm?.origin?.turn === 2 && fm?.origin?.role === 'user', JSON.stringify(fm?.origin));
 
+const mdInjected = toMarkdown([{
+  name: '注入测试', description: '', keywords: [], summary: '', rounds: 0, turns: [], exemplars: [],
+  memories: [{
+    id: 'm_inject', type: 'fact', text: '第一条', keys: ['a\n## 对话'], source: 'conversation\n# 全局档案',
+    archiveReason: 'x\n# 全局档案', status: 'active', tier: 'durable', scope: 'workspace', turn: 1, at: t0,
+  }],
+}], { profile: [] });
+const parsedInjected = parsePortable(mdInjected);
+ok('Markdown 元数据不因换行注入新文档', parsedInjected.workspaces?.[0]?.memories?.length === 1 && parsedInjected.profile.length === 0, JSON.stringify({ ws: parsedInjected.workspaces?.[0]?.memories?.length, profile: parsedInjected.profile.length }));
+
 // ── 插件：策略锁定、费用桥接、时间线、迁移排除、导出/导入 ──
 process.env.DSH_HOME = tempHome();
 const { apply } = await import('../lib/index.js');

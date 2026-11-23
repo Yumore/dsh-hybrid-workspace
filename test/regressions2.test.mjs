@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
+import { createServer, request } from 'node:http';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { agent, firePre, makeCtx, sleep, tempHome } from './fake-ctx.mjs';
 import { classifyLifecycle } from '../lib/lifecycle.js';
 import { planMigration } from '../lib/migrate.js';
@@ -61,6 +63,19 @@ async function send (path, opts) {
 async function post (body, headers = {}) {
   return send('/api', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 }
+function getWithHost (host) {
+  const u = new URL(base + '/api');
+  return new Promise((resolve, reject) => {
+    const req = request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'GET', headers: { host } }, res => {
+      let text = '';
+      res.setEncoding('utf8');
+      res.on('data', chunk => { text += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, text }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 try {
   const badType = await send('/api', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{}' });
@@ -69,6 +84,10 @@ try {
   ok('跨站 Origin 被拒绝', badOrigin.status === 403, String(badOrigin.status));
   const goodOrigin = await post({ op: 'list' }, { origin });
   ok('同源 Origin 放行', goodOrigin.status === 200 && goodOrigin.json?.ok === true, String(goodOrigin.status));
+  const evilGet = await getWithHost('evil.example');
+  ok('GET 非回环 Host 被拒绝', evilGet.status === 403, String(evilGet.status));
+  const goodGet = await getWithHost('127.0.0.1:' + server.address().port);
+  ok('GET 回环 Host 放行', goodGet.status === 200 && JSON.parse(goodGet.text).workspaces.length >= 1, String(goodGet.status));
 
   const live = inst.state.workspaces[0];
   const wsId = live.id;
@@ -152,6 +171,41 @@ try {
   const html = await (await fetch(base + '/')).text();
   ok('迁移预览含按轮次全选', html.includes('round-all') && html.includes('data-round'));
   ok('费用标签说明最近 12 会话', html.includes('最近 12 会话合计') || html.includes('会话费用'));
+
+  // 自定义 stateDir：加载与保存必须都走同一个目录，否则重启丢数据。
+  const oldHome = process.env.DSH_HOME;
+  const customHome = tempHome();
+  process.env.DSH_HOME = customHome;
+  const customDir = join(customHome, 'custom-state');
+  const customCtx = makeCtx({ webServer: false });
+  const customInst = apply(customCtx, { debug: false, disableProcessHook: true, stateDir: customDir, sweepIntervalMs: 0 });
+  const customAgent = agent('custom-state-dir');
+  await firePre(customCtx, customAgent, '自定义目录重启验证', 1);
+  await sleep(50);
+  await customInst.flush();
+  const customExists = existsSync(join(customDir, 'state.json'));
+  const defaultExists = existsSync(join(customHome, 'hybrid-workspace-v2', 'state.json'));
+  const customCtx2 = makeCtx({ webServer: false });
+  const customInst2 = apply(customCtx2, { debug: false, disableProcessHook: true, stateDir: customDir, sweepIntervalMs: 0 });
+  const customSnap = await customInst2.snapshot();
+  ok('自定义 stateDir 重启后仍能加载', customExists && !defaultExists && customSnap.workspaces.length === 1, JSON.stringify({ customExists, defaultExists, ws: customSnap.workspaces.length }));
+  process.env.DSH_HOME = oldHome;
+
+  // mode:llm 时 locked 区不能被 LLM 改写（独立 DSH_HOME，避免读到上面的工作区）。
+  const llmHome = tempHome();
+  process.env.DSH_HOME = llmHome;
+  const llmCtx = makeCtx({ webServer: false, llmReply: JSON.stringify({ id: 'ws_llm_other', confidence: 0.9 }) });
+  const llmInst = apply(llmCtx, { debug: false, disableProcessHook: true, mode: 'llm', llmJudge: true, sweepIntervalMs: 0 });
+  const llmAgent = agent('llm-lock-session');
+  await firePre(llmCtx, llmAgent, '示范门店收银机断线', 1);
+  await sleep(50);
+  const llmOwn = llmInst.state.workspaces[0];
+  llmOwn.policy = { contextMaxChars: 900, memoryInject: 2, autoSwitch: false };
+  llmInst.state.workspaces.push({ id: 'ws_llm_other', name: '另一个区', description: '', keywords: [], summary: '', turns: [], memories: [], exemplars: [], rounds: 0, hits: 0, createdAt: Date.now(), updatedAt: Date.now(), policy: {} });
+  await firePre(llmCtx, llmAgent, '这条应该被锁定在原区', 2);
+  await sleep(50);
+  ok('locked 区不会被 LLM 切走', llmInst.state.sessions['llm-lock-session'].workspaceId === llmOwn.id, llmInst.state.sessions['llm-lock-session'].workspaceId);
+  process.env.DSH_HOME = oldHome;
 
   // 满额恢复：先人为填到上限，再恢复归档，必须明确报错而不是静默挤掉别的区。
   while (inst.state.workspaces.length < 60) {

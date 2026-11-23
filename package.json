@@ -18,7 +18,10 @@
       "default": "./lib/index.js"
     },
     "./lib/*": "./lib/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./client": {
+      "default": "./lib/client.js"
+    }
   },
   "scripts": {
     "test": "node test/all.mjs"
@@ -37,6 +40,9 @@
     "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
     }
   }
 }

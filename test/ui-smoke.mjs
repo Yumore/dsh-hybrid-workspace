@@ -40,7 +40,7 @@ try {
   ok('页面含路由 trace', page.text.includes('最近路由判定'));
   ok('页面含合并按钮', page.text.includes('data-op="merge"'));
   ok('页面含归档/删除按钮', page.text.includes('data-op="archive"') && page.text.includes('data-op="delete"'));
-  ok('页面含上下文占用', page.text.includes('占用上下文') && page.text.includes('上下文合计'));
+  ok('页面含上下文占用', page.text.includes('上下文占用') && page.text.includes('所有区合计'));
   ok('页面含上下文构成', page.text.includes('上下文构成') && page.text.includes('工作区卡') && page.text.includes('相关记忆'));
   ok('页面含多话题统计', page.text.includes('多话题'));
   ok('页面含全局档案/置顶/恢复', page.text.includes('全局档案') && page.text.includes('data-mem="pin"') && page.text.includes('data-mem="restore"'));
@@ -80,9 +80,13 @@ ok('页面体积正常', page.text.length > 7000, String(page.text.length));
     turn: 1, at: Date.now() - 1000, status: 'active', source: 'test', tier: 'durable', scope: 'workspace',
     pinned: false, validUntil: Date.now() - 1, expiresAt: Date.now() - 1, ttlMs: 0,
   });
-  const swept = await req('/api');
-  const ex = (swept.json.workspaces[0].memories || []).find(m => m.id === 'm_ui_expired');
-  ok('面板触发懒清扫', ex?.status === 'expired' && (swept.json.stats.expired ?? 0) >= 1, JSON.stringify({ status: ex?.status, expired: swept.json.stats.expired }));
+  const readOnly = await req('/api');
+  const ro = (readOnly.json.workspaces[0].memories || []).find(m => m.id === 'm_ui_expired');
+  ok('GET 不触发懒清扫', ro?.status === 'active', JSON.stringify({ status: ro?.status }));
+  const swept = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'sweep' }) });
+  const afterSweep = await req('/api');
+  const ex = (afterSweep.json.workspaces[0].memories || []).find(m => m.id === 'm_ui_expired');
+  ok('显式 sweep 标记过期', ex?.status === 'expired' && (afterSweep.json.stats.expired ?? 0) >= 1, JSON.stringify({ status: ex?.status, expired: afterSweep.json.stats.expired, sweep: swept.json }));
   const restoredMem = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'restoreMemory', id: 'm_ui_expired' }) });
   ok('恢复记忆返回 ok', restoredMem.status === 200 && restoredMem.json?.ok && restoredMem.json.memory?.status === 'active', JSON.stringify(restoredMem.json));
 

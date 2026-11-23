@@ -18,6 +18,7 @@ ok('apply 是函数', typeof mod.apply === 'function');
 ok('DEFAULTS 可读且有关键项', mod.DEFAULTS && mod.DEFAULTS.routeAccept > 0 && mod.DEFAULTS.contextMaxChars > 0);
 ok('版本号已升到 2.3.2', pkg.version === '2.3.2', pkg.version);
 ok('声明 lib 深导入与 npm test', pkg.exports?.['./lib/*'] === './lib/*' && pkg.scripts?.test === 'node test/all.mjs', JSON.stringify({ exports: pkg.exports?.['./lib/*'], test: pkg.scripts?.test }));
+ok('声明浏览器半边与工作区按钮', pkg.exports?.['./client']?.default === './lib/client.js' && pkg.dsh?.client?.platform === 'web' && existsSync(new URL('../lib/client.js', import.meta.url)), JSON.stringify({ client: pkg.exports?.['./client'], dshClient: pkg.dsh?.client }));
 ok('package.json 声明 dsh.bundle（DSH 才会加载这个包）', pkg.dsh?.manifestVersion === 1 && typeof pkg.dsh?.bundle?.patch === 'string', JSON.stringify(pkg.dsh ?? null));
 const bundlePatchRel = pkg.dsh?.bundle?.patch;
 const bundlePatch = bundlePatchRel ? new URL('../' + bundlePatchRel.replace(/^\.\//, ''), import.meta.url) : null;
