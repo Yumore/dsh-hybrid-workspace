@@ -1,7 +1,7 @@
 {
   "name": "dsh-hybrid-workspace-v2",
-  "version": "2.0.0",
-  "description": "单聊天框 + 多工作区上下文路由 v2：工作区卡路由、结构化记忆、预算化上下文",
+  "version": "2.3.1",
+  "description": "单聊天框 + 多工作区上下文路由 v2.3.1：每区策略、导出导入（含全局档案）、trace 解释、迁移逐条勾选、cost-meter 可选桥接、结论演变、连续问句拆段",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -28,5 +28,11 @@
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.2 <5.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   }
 }

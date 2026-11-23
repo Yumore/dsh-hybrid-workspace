@@ -1,6 +1,6 @@
 # v2 调研与设计记录
 
-日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。
+日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。2026-11-23 更新：补充多话题拆分、注入过滤、宿主插件去重、上下文迁移与 v2.3.1 真实回放结论。
 
 ## 1. 调研范围与结论
 
@@ -68,6 +68,38 @@ v2 状态在 `$DSH_HOME/hybrid-workspace-v2/state.json`，原子写 + 300ms 防�
 
 不写 DSH 客户端 bundle：客户端插件是私有 `window.__ModuleLoader__` 格式，没有官方构建工具，手写有把前端启动搞挂的风险。改为宿主 webServer 直出自包含 HTML + JSON API，零前端依赖。
 
+### 2.6 多话题：轻量拆段 + 每段独立路由
+
+一条消息可能同时问几件事。v2 不把整条消息塞进一个区，而是先 `splitSegments()`：按空行、行首编号/项目符号、句末连接词（另外/还有/顺便/再问一个/另一个问题/第二个问题/第三个问题）切分；含三反引号代码围栏时整条不拆；短于 `segmentMinChars=12` 的碎片并入相邻段；最多 `multiTopicMax=3` 段，超出并入最后一段。
+
+每段用一个临时会话视图（`{workspaceId:null,pending:null,recent:[]}`）独立跑 `decideRoute`，因此可以新建多个区或复用多个已有区。`session.activeWorkspaceIds` / `lastSegments` / `multiQuery` 记录本次涉及区，系统提示改用 `buildMultiContext()` 注入每区一张卡（总预算 `multiContextMaxChars=3000`，每区至少 700 字符），并附「多话题回答规则」。助手回答分发到所有活跃区，但记忆只写主区，避免一句话被复制多份。追问「第二个呢？」通过段序引用回到对应区。
+
+取舍：不引入 LLM 分割，避免每轮多一次调用；拆错时面板可合并/改范围。代码围栏不拆，避免把一段代码里的空行误判成两个话题。
+
+### 2.7 注入过滤：只认真实用户消息
+
+DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops 的 batching-guidance，source `dsh-ops:step-tail`）。早期 v2 把这些当用户输入，导致建出「Plugin context fro」工作区并污染记忆。修复：`INJECTED_PREFIX=/^\s*\[Plugin context from\b/iu` 与 `INJECTED_SOURCE=/(?:batching-guidance|dsh-ops:step-tail)/iu`；带这些标记的消息不参与路由、不 appendTurn、不 remember。面板也不显示这些轮次。
+
+### 2.8 上下文构成与宿主插件去重
+
+面板增加 breakdown：把注入块按工作区卡/相关记忆/未决事项/最近对话/回答规则统计字符，顶部显示总量与占比。这样不再依赖 dsh-context 的独立仪表板。
+
+宿主侧同时移除两个重复插件：dsh-context（只做洞察，不做压缩；其上下文构成已并入本面板）与官方 experimental plugin market bundle（只提供空壳 Discover，dshmarket 才是完整社区市场）。两者都只从 profile 的 dependencies/bundles 移除，node_modules 保留，回滚只需加回并重启。
+
+### 2.9 上下文迁移：先聊后建区
+
+自动路由是自底向上的聚类：用户先随口聊了几句，内容落进已有区或新建的临时区；后来某个话题值得单独维护，才手动建区。v1/v2.1 只有整区 merge，无法「只搬这个关键词相关的那部分」。v2.2 增加 `lib/migrate.js`：
+
+- 对来源的 turns / memories / exemplars 建 IDF，按查询词覆盖率打分；`mode=match` 取分数 ≥ `minScore`（默认 .34），`mode=all` 全选。
+- 命中某轮任一条对话时，默认把同轮助手回答一起搬（`roundContext`），避免只带走问题不带走结论。
+- 迁移前 `dryRun:true` 返回每个来源的命中/剩余数量、样本与分数；面板先预览再确认。
+- 真正搬迁时按 role+text+at 去重对话、按 id 或规范化文本去重记忆；来源轮次映射到目标 `rounds+1` 起，来源轮次扣减，避免两边轮次号冲突。
+- `archiveMode=auto` 只有来源被搬空才归档；`always` 总是归档；`never` 保留空来源。搬空的来源只存元数据（`restorable:false`、`migratedTo`），不提供恢复，避免原文重复注入；来源还有剩余内容时归档仍可恢复。
+- `rebindSessions` 默认开：绑定在来源的会话、多话题活跃区、段引用全部改到目标区，用户不需要切 DSH 会话；下一轮注入目标区，路由器之后仍可再切走。
+- 只动 `state.workspaces`，不动 `state.profile`；来源不能是目标；不调用 LLM，迁移匹配是词面的。
+
+取舍：没有做「自动判断该不该建区」——建区是用户的组织决策，插件只提供低成本迁移；也没有做语义同义匹配，避免引入嵌入与索引运维。
+
 ## 3. 指标
 
 ### 3.1 合成问题离线回放
@@ -104,12 +136,49 @@ v2 状态在 `$DSH_HOME/hybrid-workspace-v2/state.json`，原子写 + 300ms 防�
 
 结论：全量历史在 200 轮时事实「还在」，但中位距离 11.3 万 token，模型实际用不上；v2 的 2400 字符预算比账本更小，必须靠结构化记忆与按需检索保真。该基准尚未对 v2 重跑。
 
+### 3.4 多话题与过滤回归
+
+- `test/segment.test.mjs`：空行、编号、连接词、短碎片、代码围栏、超上限、multiTopic=false。
+- `test/filter.test.mjs`：三种注入形态不建区、不增轮、不注入；真实用户消息正常建区；助手侧注入文本不写入。
+- `test/multi.test.mjs`：三话题空行消息建 3 区、`multiTurns=1`、注入含 `### 工作区 1/3`、编号回答拆分到 3 区且不整段复制、无编号回答只写主区、追问「第二个呢？」回到第二区。
+
+### 3.5 v2.1 记忆生命周期回归
+
+- `lib/lifecycle.js`：profile / durable / episodic / scratch 四层，TTL 与本地日界；过期只标记 `expired`，不硬删。
+- `state.profile`：全局档案独立存放，不复制进工作区；两个工作区都能按相关度注入同一份档案。
+- 旧记忆只补字段：默认 durable/workspace/pinned=false，`validUntil` 保持 null，避免升级后被 TTL 清掉。
+- `test/lifecycle.test.mjs`：规则分类、旧记忆归一、过期不注入、懒清扫只标记、置顶覆盖 TTL、恢复续期、全局档案隔离、插件注入与落盘。
+
+### 3.6 v2.2 上下文迁移回归
+
+- `test/migrate.test.mjs`：纯函数层验证关键词命中 2 条对话（含同轮助手）+1 条记忆、剩余量、轮次重编号、来源轮次扣减、关键词合并；插件 API 层验证 dry-run 不落盘、部分迁移保留来源、目标累计、会话重绑、搬空来源归档为元数据、`restorable:false` 拒绝恢复、面板含新建/迁移入口。
+- 扩展覆盖 `archiveMode=always`（来源有剩余也归档、快照可恢复）与 `never`（搬空也保留空来源、不产生归档）。未覆盖：迁移后再次回流的重复去重。
+
+### 3.7 v2.2.1 审查回归
+
+- `test/review.test.mjs`：损坏 v2 状态备份后直接空启动、不再回退旧 v1；高相似不同结论走 supersede、同结论复述才 noop；trim 不硬删决策；全局档案无容器时跳过；superseded 不能置顶/恢复；合并轮次偏移/去重/摘要；多话题上下文首尾卡与预算；`index.html` 面板 API 基址；迁移重复来源只 plan 一次；归档/删除解绑多话题；编号回答拆分；`profileKeep` 只归档未置顶档案。
+- 全量 15 套件：core / router / memory / migration / autocreate / state-corrupt / segment / filter / multi / lifecycle / migrate / eval-synth / ui-smoke / load-check / review，全部 PASS。
+
+### 3.8 v2.3 回归
+
+- 每区策略：`lib/policy.js` 夹取 `contextMaxChars` 600–12000、`memoryInject` 0–20、`autoSwitch`；`lib/context.js` 合并策略与全局预算；`locked` 时不拆多话题、不自动切区。
+- 可移植性：`lib/portable.js` 导出 JSON/Markdown（默认含 `state.profile`，`withProfile:false` 可关闭），导入重编工作区与记忆 id、重指向 supersede 链；全局档案按规范化文本去重后合并。
+- 路由解释：`lib/router.js` 的候选带 `matched/coverage`，`decideRoute` 记录问句词、当前区分与分差；面板 trace 展开显示命中词和 how 原因。
+- 迁移逐条勾选：`lib/migrate.js` 预览返回 `items` 与 `nearItems`；`exclude` 排除已选条目，`include` 补选低分候选；`nearFloor=min(minScore,max(.08,minScore-.26))`。
+- 可选桥接：`ctx.inject(['costMeter'])`，无服务时 `snapshot.cost.available=false`；不在核心依赖里。
+- 结论演变：`lib/timeline.js` 沿 `supersededBy` 串链，面板卡片展示旧结论划线 → 新结论。
+- 真实状态回放（本地 `.local/`，不随仓库发布）：2026-11-23 样本为 17 个工作区/4 个会话/2043 条记忆。连续问句样本（无空行/编号/连接词）修复前只拆 1 段，加入问号边界后拆成 3 段；但三段仍因同域词面相似落到同一已有区，说明“拆开”和“分区”是两件事。迁移 query 命中 4 轮/8 记忆，排除一条后 3 轮/8 记忆，执行后来源/目标守恒；跨语言（中文“插件”对英文 plugin）仍然漏搬。
+- 全量 17 套件（core / router / memory / migration / autocreate / state-corrupt / segment / filter / multi / lifecycle / migrate / review / regressions2 / v23 / eval-synth / ui-smoke / load-check）全部 PASS；另对面板内联脚本做 `new Function` 编译检查。
+
 ## 4. 未解决
 
 - **物理隔离（B 方案）**：主代理只路由，子代理带独立上下文回答并回摘要；DSH 侧需要 `ctx.subagents.startActivation` 或每区专用会话。面板无法替用户切会话，需客户端配合。见 `docs/plan-b.md`。
 - **记忆抽取保真**：规则抽取会漏无关键词叙述；可用 LLM 抽取，但每轮多一次调用，暂不做默认。
 - **跨进程并发**：state.json 无锁。
 - **LLM 路由的真实收益**：离线测试 llmCalls=0，尚未在真实 DSH 会话中验证 `ask-llm` 的比例与准确率。
+- **多话题拆段的准确率**：已有真实小样本回放（连续问句可拆到 3 段），但样本量小；同域多段仍会并到一个区，是否要“每段强制建区”是产品选择，不是拆段器能单独决定。代码围栏不拆，包含大段代码的消息会整条归一个区。
+- **迁移的语义匹配**：目前只按 token/IDF，同义改写和跨语言会漏搬；真实回放已看到中文“插件”匹配不到英文 plugin。暂不引入向量/LLM：漏搬可用 `mode:"all"`、更宽关键词、预览逐条补选兜底；等真实漏搬样本积累到能评估收益后再考虑语义层。
+- **迁移目标为空**：面板新建目标区后若取消预览，会留下一个空工作区；可手动归档/删除。
 
 ## 5. 复现
 

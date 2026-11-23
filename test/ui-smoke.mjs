@@ -11,10 +11,11 @@ const ok = (name, cond, detail = '') => {
 };
 
 const ctx = makeCtx({ webServer: true });
-const inst = apply(ctx, { debug: false, llmJudge: false });
+const inst = apply(ctx, { debug: false, llmJudge: false, sweepIntervalMs: 0 });
 const a = agent('s1');
 await firePre(ctx, a, '示范门店收银机每天下午四点断线，先查 net.log 的 reconnect 记录', 1, 1);
 await fireAssistant(ctx, a, '结论：示范门店收银机断线是 4G 链路心跳超时导致，下一步要把 reconnect 间隔改成 30 秒。');
+await firePre(ctx, a, '示范门店收银机断线排查，以后每次回答都用简体中文，先给结论', 2, 1);
 await sleep(80);
 ok('面板路由已注册', ctx.routes.length === 1, String(ctx.routes.length));
 
@@ -34,14 +35,21 @@ async function req (path, opts) {
 try {
   const page = await req('');
   ok('面板 200', page.status === 200, String(page.status));
-  ok('页面标题 v2', page.text.includes('混合工作区') && page.text.includes('v2'));
+  ok('页面标题 v2.3', page.text.includes('混合工作区') && page.text.includes('v2.3'));
   ok('页面含记忆区块', page.text.includes('相关记忆') && page.text.includes('代表性问法'));
   ok('页面含路由 trace', page.text.includes('最近路由判定'));
   ok('页面含合并按钮', page.text.includes('data-op="merge"'));
   ok('页面含归档/删除按钮', page.text.includes('data-op="archive"') && page.text.includes('data-op="delete"'));
   ok('页面含上下文占用', page.text.includes('占用上下文') && page.text.includes('上下文合计'));
+  ok('页面含上下文构成', page.text.includes('上下文构成') && page.text.includes('工作区卡') && page.text.includes('相关记忆'));
+  ok('页面含多话题统计', page.text.includes('多话题'));
+  ok('页面含全局档案/置顶/恢复', page.text.includes('全局档案') && page.text.includes('data-mem="pin"') && page.text.includes('data-mem="restore"'));
+  ok('页面含导出/导入', page.text.includes('id="export"') && page.text.includes('id="import"'));
+  ok('页面含策略与结论演变', page.text.includes('data-op="policy"') && page.text.includes('结论演变'));
+  ok('页面 trace 含命中词', page.text.includes('命中词') && page.text.includes('问句词'));
   ok('页面自包含无外链', !page.text.includes('https://') && !page.text.includes('http://'));
-  ok('页面体积正常', page.text.length > 7000, String(page.text.length));
+  ok('面板复选框不被全局 min-width 撑宽', page.text.includes('input[type="checkbox"], input[type="radio"] { min-width:0;'));
+ok('页面体积正常', page.text.length > 7000, String(page.text.length));
 
   const api = await req('/api');
   ok('API 200 JSON', api.status === 200 && api.json && Array.isArray(api.json.workspaces), String(api.status));
@@ -51,6 +59,32 @@ try {
   ok('API 返回会话绑定', (api.json.sessions ?? []).length === 1);
   ok('API 返回上下文占用', (ws.contextChars ?? 0) > 0 && (ws.contextTokens ?? 0) > 0 && (ws.contextPct ?? 0) > 0, JSON.stringify({ chars: ws.contextChars, tokens: ws.contextTokens, pct: ws.contextPct }));
   ok('API 统计含上下文合计', api.json.stats.contextChars >= ws.contextChars && api.json.stats.contextTokens >= ws.contextTokens);
+  ok('API 统计含上下文构成', (api.json.stats.contextBreakdown?.total ?? 0) > 0 && (api.json.stats.contextBreakdown?.memories ?? 0) >= 0, JSON.stringify(api.json.stats.contextBreakdown));
+  ok('API 统计含多话题计数', Number.isFinite(api.json.stats.multiTurns), String(api.json.stats.multiTurns));
+  ok('无 cost-meter 时费用隐藏', api.json.cost?.available === false, JSON.stringify(api.json.cost));
+  ok('API 返回全局档案', Array.isArray(api.json.profile) && api.json.profile.length >= 1 && api.json.profile[0].tier === 'profile', JSON.stringify(api.json.profile?.[0] || null));
+  ok('API 统计含全局档案/过期', (api.json.stats.profile ?? 0) >= 1 && Number.isFinite(api.json.stats.expired), JSON.stringify({ profile: api.json.stats.profile, expired: api.json.stats.expired }));
+  ok('API 会话含活跃区字段', Array.isArray(api.json.sessions[0]?.activeWorkspaceIds), JSON.stringify(api.json.sessions[0]));
+
+  const pm = api.json.profile[0];
+  const unpin = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'pin', id: pm.id, pinned: false }) });
+  ok('取消置顶返回 ok', unpin.status === 200 && unpin.json?.ok && unpin.json.memory?.pinned === false, JSON.stringify(unpin.json));
+  const afterUnpin = await req('/api');
+  ok('取消置顶已生效', afterUnpin.json.profile[0].pinned === false);
+  const repin = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'pin', id: pm.id, pinned: true }) });
+  ok('重新置顶返回 ok', repin.status === 200 && repin.json?.ok && repin.json.memory?.pinned === true, JSON.stringify(repin.json));
+
+  const live = inst.state.workspaces[0];
+  live.memories.push({
+    id: 'm_ui_expired', type: 'fact', text: '旧结论：这条应该被懒清扫', keys: ['旧结论'], importance: 2,
+    turn: 1, at: Date.now() - 1000, status: 'active', source: 'test', tier: 'durable', scope: 'workspace',
+    pinned: false, validUntil: Date.now() - 1, expiresAt: Date.now() - 1, ttlMs: 0,
+  });
+  const swept = await req('/api');
+  const ex = (swept.json.workspaces[0].memories || []).find(m => m.id === 'm_ui_expired');
+  ok('面板触发懒清扫', ex?.status === 'expired' && (swept.json.stats.expired ?? 0) >= 1, JSON.stringify({ status: ex?.status, expired: swept.json.stats.expired }));
+  const restoredMem = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'restoreMemory', id: 'm_ui_expired' }) });
+  ok('恢复记忆返回 ok', restoredMem.status === 200 && restoredMem.json?.ok && restoredMem.json.memory?.status === 'active', JSON.stringify(restoredMem.json));
 
   const renamed = await req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'rename', id: ws.id, name: '示范门店终端掉线' }) });
   ok('重命名返回 ok', renamed.status === 200 && renamed.json?.ok, String(renamed.status) + ' ' + renamed.text.slice(0, 80));

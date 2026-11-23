@@ -7,3 +7,4 @@ test/fixtures/real-questions.json
 test/fixtures/*.local.json
 bench-results.json
 coverage/
+.local/

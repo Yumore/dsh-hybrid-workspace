@@ -2,7 +2,7 @@ import { tempHome, sleep } from './fake-ctx.mjs';
 
 process.env.DSH_HOME = tempHome();
 const pkgUrl = new URL('../package.json', import.meta.url);
-const { readFileSync } = await import('node:fs');
+const { readFileSync, existsSync } = await import('node:fs');
 const pkg = JSON.parse(readFileSync(pkgUrl, 'utf8'));
 const mod = await import('../lib/index.js');
 
@@ -16,6 +16,12 @@ ok('包名与导出 name 一致', pkg.name === 'dsh-hybrid-workspace-v2' && mod.
 ok('只声明 systemPrompt 为必需注入', Array.isArray(mod.inject) && mod.inject.length === 1 && mod.inject[0] === 'systemPrompt', JSON.stringify(mod.inject));
 ok('apply 是函数', typeof mod.apply === 'function');
 ok('DEFAULTS 可读且有关键项', mod.DEFAULTS && mod.DEFAULTS.routeAccept > 0 && mod.DEFAULTS.contextMaxChars > 0);
+ok('package.json 声明 dsh.bundle（DSH 才会加载这个包）', pkg.dsh?.manifestVersion === 1 && typeof pkg.dsh?.bundle?.patch === 'string', JSON.stringify(pkg.dsh ?? null));
+const bundlePatchRel = pkg.dsh?.bundle?.patch;
+const bundlePatch = bundlePatchRel ? new URL('../' + bundlePatchRel.replace(/^\.\//, ''), import.meta.url) : null;
+ok('dsh.bundle.patch 指向的文件存在', bundlePatch !== null && existsSync(bundlePatch), bundlePatch?.pathname ?? 'missing');
+const bundleText = bundlePatch && existsSync(bundlePatch) ? readFileSync(bundlePatch, 'utf8') : '';
+ok('bundle patch 含 hybrid-workspace insert', /-\s*id:\s*hybrid-workspace/.test(bundleText));
 
 const sections = [];
 const handlers = {};
@@ -30,7 +36,18 @@ ok('系统提示词 section 已注册', sections.length === 1 && sections[0].nam
 ok('未绑定工作区时注入为空', sections[0]?.text?.({ agent: { session: { id: 'nope' } } }) === '');
 ok('pre-step 钩子已注册', (handlers['agent/pre-step'] ?? []).length === 1);
 ok('session/event 钩子已注册', (handlers['session/event'] ?? []).length === 1);
-ok('无 webServer 时不抛错', true);
+let noWebError = null;
+try {
+  const noWeb = {
+    on: () => {},
+    systemPrompt: { section: () => {}, getSectionOrder: () => undefined },
+    logger: { info () {}, debug () {} },
+  };
+  await mod.apply(noWeb, { debug: false }).flush();
+} catch (error) {
+  noWebError = error;
+}
+ok('无 webServer 时不抛错', noWebError === null, noWebError ? String(noWebError?.message ?? noWebError) : '');
 await inst.flush();
 
 console.log(fails ? 'LOAD FAIL ' + fails : 'LOAD PASS');
