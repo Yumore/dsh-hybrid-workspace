@@ -1,6 +1,6 @@
 # v2 调研与设计记录
 
-日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。2026-11-23 更新：补充多话题拆分、注入过滤、宿主插件去重、上下文迁移、v2.3.1 真实回放与 v2.3.2 全量复查结论。
+日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。2026-11-23 更新：补充多话题拆分、注入过滤、宿主插件去重、上下文迁移、v2.3.1 真实回放、v2.3.2 全量复查与 v2.3.3 面板关闭修复。
 
 ## 1. 调研范围与结论
 
@@ -181,6 +181,11 @@ DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops �
 - P2：`lib/policy.js` 严格布尔与有限数；`lib/timeline.js` 按 supersededBy 指针顺序；`lib/ui.js` 后台标签跳过刷新并保留 details；`lib/portable.js` JSON/Markdown 补齐归档、置顶、恢复、来源、实体、重要性、创建/更新时间与编号，Markdown 多文档用空行连接、正文中的 `- 状态：` 不误判元数据；`package.json` 升 2.3.2、exports 加 `./lib/*`、`npm test` 指向 `test/all.mjs`。
 - 复查期间又修：Markdown 取代链缺 id、`---` 分隔符污染正文、`normalizeMemory` 丢 archivedAt/archiveReason、跨区同文记忆 id 冲突、头部档案计数、600 预算被 800 抬回。
 - 全量 17 套件（core / router / memory / migration / autocreate / state-corrupt / segment / filter / multi / lifecycle / migrate / review / regressions2 / v23 / eval-synth / ui-smoke / load-check）通过 `node test/all.mjs` 顺序执行，全部 PASS；面板内联脚本另做 `new Function` 编译检查。新增回归覆盖超容量导入/满额恢复/sweep、Markdown 取代链与多文档、归档元数据、实体冲突、openItems/pruneInactive、策略字符串 false、时间线指针顺序。
+
+### 3.10 v2.3.3 面板关闭修复
+
+- 面板被 Electron 拦截 `window.open` 后可能回落到主窗口；旧关闭逻辑无条件 `window.close()`，会关掉整个 DSH。现在只对具名小窗 `hybrid-workspace-panel` 执行 close，同窗回退到 `/`，并补了同窗不关窗口的回归。
+- 全量 17 套件与面板内联脚本编译通过。
 
 ## 4. 未解决
 

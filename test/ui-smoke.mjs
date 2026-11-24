@@ -41,6 +41,7 @@ try {
   ok('页面含合并按钮', page.text.includes('data-op="merge"'));
   ok('页面含归档/删除按钮', page.text.includes('data-op="archive"') && page.text.includes('data-op="delete"'));
   ok('页面含关闭面板按钮', page.text.includes('id="close-panel"'));
+  ok('关闭面板只关独立小窗，同窗回 DSH 首页', page.text.includes("const popup = window.name === 'hybrid-workspace-panel'") && page.text.includes('if (popup)') && page.text.includes("window.location.assign('/')"));
   ok('页面使用内嵌对话框而不是浏览器 prompt/confirm/alert', page.text.includes('function openDialog') && !/\b(prompt|confirm|alert)\s*\(/.test(page.text));
   ok('页面含上下文占用', page.text.includes('上下文占用') && page.text.includes('所有区合计'));
   ok('页面含上下文构成', page.text.includes('上下文构成') && page.text.includes('工作区卡') && page.text.includes('相关记忆'));
