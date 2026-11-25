@@ -215,7 +215,7 @@ DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops �
 
 - DSH 桌面端 `app.asar/lib/main.js:20278` 的 `setWindowOpenHandler` 会把 `http(s)` 的 `window.open` 交给系统浏览器并 `deny` 应用内窗口；系统浏览器没有 DSH 登录态，用户只会看到 `dsh web authentication required`。
 - 主窗口实际加载 `dsh-app://app/`，不是 `http://127.0.0.1:<port>`；顶层 `window.location.assign` 在该自定义协议下仍无法稳定进入插件页，因此不再依赖导航。
-- `lib/client.js` 改为在 DSH 窗口内追加全屏 `#hybrid-workspace-overlay`，主体 `iframe` 的 src 用 `new URL("hybrid-workspace/", window.location.href)` 解析；顶栏保留「关闭」和「浏览器打开」（后者读 `__DSH_TRANSPORT__.streamBaseUrl`）。页面与 API 仍走 `dsh-app://app` 的同源转发。
+- `lib/client.js` 改为在 DSH 窗口内追加全屏 `#hybrid-workspace-overlay`，主体 `iframe` 的 src 用 `new URL("hybrid-workspace/shell", window.location.href)` 解析到聊天页；顶栏保留「关闭」和「浏览器打开」（后者读 `__DSH_TRANSPORT__.streamBaseUrl`）。页面与 API 仍走 `dsh-app://app` 的同源转发。
 - 面板检测 `window.self !== window.top` 时加 `embedded` class，隐藏自身的「关闭面板」与「独立壳」，避免 iframe 内导航到 DSH 根或触发非回环壳错误。
 - `test/load-check.mjs` 断言 iframe 入口、完整地址解析、`__DSH_TRANSPORT__` 外开和禁止 `window.open(`；`test/ui-smoke.mjs` 断言 embedded 规则。Playwright harness 验证 overlay/iframe/关闭/外开链接；全量 21 套件通过。
 
