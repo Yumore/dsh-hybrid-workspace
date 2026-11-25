@@ -35,11 +35,18 @@ async function req (path, opts) {
 try {
   const page = await req('');
   ok('面板 200', page.status === 200, String(page.status));
-  ok('页面标题 v2.5', page.text.includes('混合工作区') && page.text.includes('v2.5'));
+  ok('页面标题 v2.6', page.text.includes('混合工作区') && page.text.includes('v2.6'));
   ok('页面含记忆区块', page.text.includes('相关记忆') && page.text.includes('代表性问法'));
   ok('页面含路由 trace', page.text.includes('最近路由判定'));
   ok('页面含合并按钮', page.text.includes('data-op="merge"'));
   ok('页面含归档/删除按钮', page.text.includes('data-op="archive"') && page.text.includes('data-op="delete"'));
+  ok('页面含独立壳入口', page.text.includes('id="open-shell"') && page.text.includes('/shell'));
+  ok('独立壳是聊天式主界面', page.text.includes('id="chat"') && page.text.includes('id="chat-form"') && page.text.includes('function renderChat'));
+  ok('全部管理功能收进单一入口', page.text.includes('id="drawer-toggle"') && page.text.includes('id="console-drawer"') && page.text.includes('function initShell') && page.text.includes('body.appendChild(header)'));
+  ok('聊天发送进入收件箱并开始执行', page.text.includes("op: 'inboxAdd'") && page.text.includes("op: 'inboxRun', all: true"));
+  const shellPage = await req('/shell');
+  ok('独立壳页面 200', shellPage.status === 200 && shellPage.text.includes('const SHELL') && shellPage.text.includes('独立壳'), String(shellPage.status));
+  ok('页面含治理区', page.text.includes('id="governance"') && page.text.includes('工作区治理') && page.text.includes('data-gov="archive-picked"'));
   ok('页面含关闭面板按钮', page.text.includes('id="close-panel"'));
   ok('关闭面板只关独立小窗，同窗回 DSH 首页', page.text.includes("const popup = window.name === 'hybrid-workspace-panel'") && page.text.includes('if (popup)') && page.text.includes("window.location.assign('/')"));
   ok('页面使用内嵌对话框而不是浏览器 prompt/confirm/alert', page.text.includes('function openDialog') && !/\b(prompt|confirm|alert)\s*\(/.test(page.text));

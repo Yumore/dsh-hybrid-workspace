@@ -6,6 +6,7 @@ const SUITES = [
   'core.test.mjs',
   'entry.test.mjs',
   'filter.test.mjs',
+  'governance.test.mjs',
   'inbox.test.mjs',
   'inbox-executor.test.mjs',
   'lifecycle.test.mjs',
