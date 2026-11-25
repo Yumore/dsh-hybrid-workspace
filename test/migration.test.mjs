@@ -64,5 +64,9 @@ ok('二次加载不重复', second.state.workspaces.length === 1 && second.state
 const normalized = normalizeState({ workspaces: [{ name: 'x', turns: [{ role: 'user', text: 't', round: 7 }] }] });
 ok('normalizeState 保留 round', normalized.workspaces[0].turns[0].round === 7);
 
+const reloaded = normalizeState({ sessions: { s1: { workspaceId: 'ws_a', newTopic: { text: '暂存首条', name: '暂存', at: 5, wsId: 'ws_a', round: 3, originTurn: 4 } } } });
+const nt = reloaded.sessions.s1.newTopic;
+ok('normalizeState 保留暂存轮的迁移坐标', nt?.wsId === 'ws_a' && nt?.round === 3 && nt?.originTurn === 4, JSON.stringify(nt));
+
 console.log(fails ? 'MIGRATION FAIL ' + fails : 'MIGRATION PASS');
 process.exit(fails ? 1 : 0);

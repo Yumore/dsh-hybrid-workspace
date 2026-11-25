@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 const SUITES = [
   'autocreate.test.mjs',
   'core.test.mjs',
+  'entry.test.mjs',
   'filter.test.mjs',
+  'inbox.test.mjs',
   'lifecycle.test.mjs',
   'memory.test.mjs',
   'migrate.test.mjs',

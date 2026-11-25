@@ -1,4 +1,4 @@
-import { decideRoute, createWorkspace, addExemplar, mergeWorkspace } from '../lib/router.js';
+import { decideRoute, createWorkspace, addExemplar, mergeWorkspace, takeRoundTurns } from '../lib/router.js';
 import { jaccard, tokens } from '../lib/text.js';
 
 const clusters = [
@@ -18,19 +18,28 @@ const clusters = [
 
 function run () {
   const workspaces = [];
-  const session = { workspaceId: null, pending: null };
+  const session = { workspaceId: null, pending: null, newTopic: null };
   const byId = (id) => workspaces.find(w => w.id === id);
   const step = (text) => {
     let d = decideRoute({ workspaces, session, text });
     if (d.action === 'ask-llm') d = { action: 'new', how: 'ask-llm-fallback' };
+    const pending = session.newTopic;
     let ws;
     if (d.action === 'new') {
-      ws = createWorkspace(text); workspaces.push(ws); session.workspaceId = ws.id; session.pending = null;
+      const confirmed = d.how === 'new-topic-confirmed' && pending?.text;
+      ws = createWorkspace(confirmed ? pending.text : text); workspaces.push(ws);
+      if (confirmed) {
+        const from = byId(pending.wsId);
+        if (from) takeRoundTurns(from, ws, pending.round);
+      }
+      session.workspaceId = ws.id; session.pending = null; session.newTopic = null;
     } else if (d.action === 'route') {
-      ws = byId(d.wsId); session.workspaceId = ws.id; session.pending = null; addExemplar(ws, text);
+      ws = byId(d.wsId); session.workspaceId = ws.id; session.pending = null; session.newTopic = null; addExemplar(ws, text);
     } else {
       ws = byId(session.workspaceId);
       if (d.pending) session.pending = d.pending; else if (d.how !== 'pending-switch') session.pending = null;
+      if (d.newTopic !== undefined) session.newTopic = d.newTopic ? { ...d.newTopic, wsId: ws.id, round: (ws.rounds ?? 0) + 1 } : null;
+      else session.newTopic = null;
     }
     ws.rounds = (ws.rounds ?? 0) + 1; ws.hits = (ws.hits ?? 0) + 1;
     ws.turns.push({ role: 'user', text, round: ws.rounds });
@@ -40,6 +49,10 @@ function run () {
   clusters.forEach((qs, ci) => qs.forEach((q, qi) => rows.push({ ci, qi, q, ...step(q) })));
   return { workspaces, rows };
 }
+
+// 两跳确认会把暂存在旧区的第一条消息搬到新区，所以基线按「最终 turn 落在哪个区」统计，
+// 不能按 step() 当时的返回值统计。
+const finalWs = (q) => workspaces.find(w => (w.turns ?? []).some(t => t.text === q))?.id ?? null;
 
 const { workspaces, rows } = run();
 let fails = 0;
@@ -53,9 +66,10 @@ let spreadSum = 0;
 const perTopic = [];
 clusters.forEach((_, ci) => {
   const rs = rows.filter(r => r.ci === ci);
-  const first = rs[0].ws.id;
-  const same = rs.filter(r => r.ws.id === first).length;
-  const ids = [...new Set(rs.map(r => r.ws.id))];
+  const placements = rs.map(r => finalWs(r.q));
+  const first = placements[0];
+  const same = placements.filter(id => id === first).length;
+  const ids = [...new Set(placements)];
   correct += same;
   spreadSum += ids.length;
   perTopic.push({ ci, ws: ids.length, same });

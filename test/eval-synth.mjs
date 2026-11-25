@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { decideRoute, createWorkspace, addExemplar } from '../lib/router.js';
+import { decideRoute, createWorkspace, addExemplar, takeRoundTurns } from '../lib/router.js';
 import { jaccard, tokens } from '../lib/text.js';
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/synthetic-questions.json', import.meta.url), 'utf8'));
@@ -24,7 +24,7 @@ const synth = clusters.flatMap((qs, ci) => qs.map(q => ({ q, topic: ci })));
 
 function simulate (messages, cfg) {
   const workspaces = [];
-  const session = { workspaceId: null, pending: null };
+  const session = { workspaceId: null, pending: null, newTopic: null };
   const byId = id => workspaces.find(w => w.id === id);
   const events = [];
   for (const item of messages) {
@@ -33,15 +33,24 @@ function simulate (messages, cfg) {
     events.push(d.how);
     let ws;
     if (d.action === 'new' || d.action === 'ask-llm') {
-      ws = createWorkspace(text); workspaces.push(ws); session.workspaceId = ws.id; session.pending = null;
+      const pending = session.newTopic;
+      const confirmed = d.how === 'new-topic-confirmed' && pending?.text;
+      ws = createWorkspace(confirmed ? pending.text : text); workspaces.push(ws);
+      if (confirmed) {
+        const from = byId(pending.wsId);
+        if (from && from.id !== ws.id) takeRoundTurns(from, ws, pending.round);
+      }
+      session.workspaceId = ws.id; session.pending = null; session.newTopic = null;
     } else if (d.action === 'route') {
-      ws = byId(d.wsId); session.workspaceId = ws.id; session.pending = null; addExemplar(ws, text);
+      ws = byId(d.wsId); session.workspaceId = ws.id; session.pending = null; session.newTopic = null; addExemplar(ws, text);
     } else {
       ws = byId(session.workspaceId);
       if (d.pending) session.pending = d.pending; else if (d.how !== 'pending-switch') session.pending = null;
+      session.newTopic = d.newTopic !== undefined ? d.newTopic : null;
     }
     ws.rounds = (ws.rounds ?? 0) + 1; ws.hits = (ws.hits ?? 0) + 1;
     ws.turns.push({ role: 'user', text, round: ws.rounds, topic: item.topic });
+    if (session.newTopic) session.newTopic = { ...session.newTopic, wsId: ws.id, round: ws.rounds };
   }
   return { workspaces, events };
 }
@@ -66,7 +75,7 @@ function metrics (R) {
     singletons: counts.filter(n => n === 1).length,
     avgTurns: +(R.events.length / R.workspaces.length).toFixed(2),
     asks: hist['ask-llm'] ?? 0,
-    new: (hist['no-signal'] ?? 0) + (hist['bootstrap'] ?? 0) + (hist['weak-current-new'] ?? 0) + (hist['llm-new'] ?? 0),
+    new: (hist['no-signal'] ?? 0) + (hist['bootstrap'] ?? 0) + (hist['new-topic-confirmed'] ?? 0) + (hist['weak-current-new'] ?? 0) + (hist['llm-new'] ?? 0),
     routed: (hist['match'] ?? 0) + (hist['strong-signal'] ?? 0) + (hist['exact-name'] ?? 0) + (hist['switch-pending'] ?? 0),
   };
 }

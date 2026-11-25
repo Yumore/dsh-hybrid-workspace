@@ -44,6 +44,9 @@ try {
   ok('关闭面板只关独立小窗，同窗回 DSH 首页', page.text.includes("const popup = window.name === 'hybrid-workspace-panel'") && page.text.includes('if (popup)') && page.text.includes("window.location.assign('/')"));
   ok('页面使用内嵌对话框而不是浏览器 prompt/confirm/alert', page.text.includes('function openDialog') && !/\b(prompt|confirm|alert)\s*\(/.test(page.text));
   ok('页面含上下文占用', page.text.includes('上下文占用') && page.text.includes('所有区合计'));
+  ok('页面含统一收件箱', page.text.includes('id="inbox"') && page.text.includes('统一收件箱') && page.text.includes('P1 预览'));
+  ok('收件箱明确未接执行器', page.text.includes('不调用 DSH 执行器') && page.text.includes('完成状态是模拟的'));
+  ok('收件箱接入 API', page.text.includes("op: 'inboxAdd'") && page.text.includes("op: 'inboxRun'") && page.text.includes("op: 'inboxClear'"));
   ok('页面含上下文构成', page.text.includes('上下文构成') && page.text.includes('工作区卡') && page.text.includes('相关记忆'));
   ok('页面含多话题统计', page.text.includes('多话题'));
   ok('页面含全局档案/置顶/恢复', page.text.includes('全局档案') && page.text.includes('data-mem="pin"') && page.text.includes('data-mem="restore"'));

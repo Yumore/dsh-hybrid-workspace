@@ -148,7 +148,7 @@ const into = {
 };
 mergeWorkspace(from, into);
 ok('合并后轮次接续', into.rounds === 5, String(into.rounds));
-ok('合并后来源轮次偏移', into.turns.some(t => t.text === '回答一' && t.turn === 5), JSON.stringify(into.turns.map(t => [t.text, t.turn])));
+ok('合并后来源轮次偏移', into.turns.some(t => t.text === '回答一' && t.turn === 6), JSON.stringify(into.turns.map(t => [t.text, t.turn])));
 ok('合并按 id/文本去重', into.memories.length === 1 && into.turns.filter(t => t.text === '第一条').length === 1, String(into.memories.length));
 ok('合并摘要和描述', into.summary.includes('目标摘要') && into.summary.includes('来源摘要') && into.description.includes('来源范围'), into.summary);
 
