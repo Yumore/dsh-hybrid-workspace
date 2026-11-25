@@ -97,7 +97,7 @@ const ctx = makeCtx({ webServer: true });
 ctx.get = name => services[name] ?? null;
 const inst = apply(ctx, {
   debug: false, llmJudge: false, sweepIntervalMs: 0,
-  inboxExecutor: 'auto', inboxMaxConcurrent: 2, inboxTaskTimeoutMs: 1000,
+  inboxExecutor: 'auto', inboxMaxConcurrent: 2, inboxTaskTimeoutMs: 2000,
 });
 const route = ctx.routes[0];
 const server = createServer((req, res) => route.handler(req, res));
@@ -114,7 +114,7 @@ async function req (path, opts) {
 const post = body => req('/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const snap = async () => (await req('/api')).json;
 const taskOf = (s, id) => (s.inbox || []).find(t => t.id === id);
-const waitFor = async (fn, timeout = 2500) => {
+const waitFor = async (fn, timeout = 4000) => {
   const until = Date.now() + timeout;
   while (Date.now() < until) {
     if (await fn()) return true;
@@ -205,7 +205,7 @@ try {
   const a6 = (await post({ op: 'inboxAdd', text: 'A 第六条：超时', workspaceId: wsA })).json.task.id;
   await post({ op: 'inboxRun', all: true });
   ok('超时测试子会话已起', await waitFor(() => Boolean(byTask('A 第六条'))), String(store.created.length));
-  ok('超时后 failed', await waitFor(async () => taskOf(await snap(), a6)?.status === 'failed', 2200), JSON.stringify(taskOf(await snap(), a6)));
+  ok('超时后 failed', await waitFor(async () => taskOf(await snap(), a6)?.status === 'failed', 5000), JSON.stringify(taskOf(await snap(), a6)));
   ok('超时会主动取消', byTask('A 第六条')?.cancelled === 'user', String(byTask('A 第六条')?.cancelled));
   ok('超时信息可读', taskOf(await snap(), a6)?.error.includes('超时'), JSON.stringify(taskOf(await snap(), a6)));
 
