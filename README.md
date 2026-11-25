@@ -43,6 +43,8 @@ node scripts/install.mjs --apply  # 写入 profile
 
 入口默认是“两跳确认”：没命中已有区时先留在当前区，下一条同主题消息才建新区；明确说“新项目/新工作区”会立即建，同名同路径会复用，活跃区默认最多 12 个。这样寒暄和一次性问题不会把工作区撑爆。
 
+工作区只代表长期项目。超过 7 天的 0 会话空壳、超过 30 天无会话的区会在后台自动归档；低活跃、同名重复和超过活跃上限的只给建议，必须手动确认。合并只给建议，不自动执行。
+
 ## 面板
 
 面板地址是当前 DSH 地址加上：
@@ -57,7 +59,7 @@ node scripts/install.mjs --apply  # 写入 profile
 http://127.0.0.1:<DSH端口>/hybrid-workspace/
 ```
 
-重启 DSH 后，会话顶部工具栏会出现一个「工作区」按钮，点它会用独立小窗打开面板；面板右上角有「关闭面板」，可以随时回到 DSH。没看到按钮时，先确认插件在设置里已启用，或直接用上面的地址。
+重启 DSH 后，会话顶部工具栏会出现一个「工作区」按钮，点它会用独立小窗打开面板；面板右上角有「关闭面板」，可以随时回到 DSH。面板里的「独立壳」会优先启动原生 macOS 窗口，默认进入聊天页；未构建时回退浏览器窗口。没看到按钮时，先确认插件在设置里已启用，或直接用上面的地址。
 
 里面能看：
 
@@ -67,7 +69,20 @@ http://127.0.0.1:<DSH端口>/hybrid-workspace/
 - 全局档案（跨工作区生效的长期偏好）
 - 已归档的工作区和可恢复的快照
 - 统一收件箱（P2 两区试点）：把任务写进队列、手动锁定工作区、顺序或并发派发；每个任务在独立的 DSH 子会话里执行，同区串行、跨区最多 2 并发，审批固定为 never，结果只回写任务卡
+- 工作区治理：空壳/长期无会话自动归档，低活跃、同名重复和超限只给建议；勾选后可批量归档或按建议合并
 - 导出、导入、迁移、合并、改名、归档
+
+### 独立壳（可选）
+
+独立壳默认是聊天页：顶栏只有「功能」一个按钮，消息流按当前工作区显示收件箱任务和结果，底部选工作区、写任务、发送。统计、治理、归档、迁移、导入导出等全部管理功能收在「功能」抽屉里，不占用聊天界面。
+
+普通面板 `/hybrid-workspace/` 仍是管理 dashboard；独立壳地址是 `/hybrid-workspace/shell`。原生 macOS 壳只替换界面，DSH 仍在后台执行和存储。构建一次即可：
+
+```bash
+scripts/build-shell-macos.sh
+```
+
+产物默认在 `$DSH_HOME/hybrid-workspace-v2/HybridWorkspaceShell.app`。面板右上角「独立壳」会优先打开它；未构建时回退到浏览器窗口。
 
 ## 和哪些插件一起用
 
@@ -99,6 +114,10 @@ http://127.0.0.1:<DSH端口>/hybrid-workspace/
     inboxExecutor: auto     # auto=DSH 子会话；simulate=只做本地模拟，不调用执行器
     inboxMaxConcurrent: 2   # 跨区并发上限，1-4
     inboxTaskTimeoutMs: 600000  # 单个任务超时，超时主动取消
+    governanceEnabled: true     # 是否运行工作区治理扫描
+    governanceEmptyTtlMs: 604800000  # 空壳自动归档阈值（7 天）
+    governanceStaleMs: 2592000000    # 无会话长期不活跃阈值（30 天）
+    shellAppPath: ''            # 空 = $DSH_HOME/hybrid-workspace-v2/HybridWorkspaceShell.app
     panelPath: /hybrid-workspace
 ```
 

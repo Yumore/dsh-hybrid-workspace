@@ -1,6 +1,6 @@
 # v2 调研与设计记录
 
-日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。2026-11-23 更新：补充多话题拆分、注入过滤、宿主插件去重、上下文迁移、v2.3.1 真实回放、v2.3.2 全量复查与 v2.3.3 面板关闭修复。2026-11-25 更新：入口两跳确认、统一收件箱 P1 预览与 v2.4.0；随后 P2 收件箱接入独立 DSH 子会话，版本升到 v2.5.0。
+日期：2026-11-19。目标：为「单聊天框 + 多工作区上下文」找同类方案，归纳可借鉴的单点，再重构一版。2026-11-23 更新：补充多话题拆分、注入过滤、宿主插件去重、上下文迁移、v2.3.1 真实回放、v2.3.2 全量复查与 v2.3.3 面板关闭修复。2026-11-25 更新：入口两跳确认、统一收件箱 P1 预览与 v2.4.0；随后 P2 收件箱接入独立 DSH 子会话，版本升到 v2.5.0；再完成 P3 独立壳与工作区治理，版本升到 v2.6.0。
 
 ## 1. 调研范围与结论
 
@@ -198,15 +198,22 @@ DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops �
 ### 3.12 v2.5.0 P2 两区独立子会话
 
 - 收件箱执行器从 1.2 秒模拟改为真实派发：每个任务创建一个独立 DSH 子会话（`agents.create`，`meta.origin='subagent'`、记录父会话与 delegationDepth），继承父会话的 provider/model/预设，任务用 `inject`（插件边界）+ `followup`（用户任务）投递。
-- 调度改为跨区最多 2 并发、同区串行；`inboxExecutor=auto` 时缺 `agents`/`userApproval` 会明确失败并提示原因，`simulate` 仅保留为显式降级/测试路径，模拟结果标 `simulated=true`，不会伪装成真实完成。
+- 调度改为跨区最多 2 并发、同区串行；`inboxExecutor=auto` 时缺 `agents`/`approval`（兼容 `userApproval` 别名）会明确失败并提示原因，`simulate` 仅保留为显式降级/测试路径，模拟结果标 `simulated=true`，不会伪装成真实完成。
 - 子会话审批策略创建后立即设为 `never`，避免审批请求落进不可见的子会话；代价是需要审批的操作会失败，界面固定说明。结果只回写任务卡（`done/failed/cancelled`、子会话 id、可见文本），不改工作区 turns/记忆。
 - 取消会 `agent.cancel('user')` 并立即标记 cancelled；超时（默认 10 分钟）主动取消并标 failed；`turn/end` 的 error/blocked/max-tokens 等不按完成处理；`inboxClear all` 会中断在跑子会话。
-- `lib/executor.js` 只用 `ctx.get` 懒加载宿主服务，不 import DSH 内部包；`agents`/`agentPresets`/`userApproval` 均为内部服务，加载失败或版本不兼容时走明确失败，需 adapter 兜底。
-- 全量 20 套件（新增 inbox-executor）与面板内联脚本编译通过。
+- `lib/executor.js` 只用 `ctx.get` 懒加载宿主服务，不 import DSH 内部包；`agents`/`agentPresets`/`approval` 均为内部服务，加载失败或版本不兼容时走明确失败，需 adapter 兜底。
+- 全量 21 套件（新增 inbox-executor 与 governance）与面板内联脚本编译通过。
+
+### 3.13 v2.6.0 P3 独立壳与工作区治理
+
+- 面板新增工作区治理区：0 会话/0 对话/0 记忆且闲置 >=7 天的空壳、无会话且 >=30 天不活跃的工作区由 sweep 自动归档（reason `governance-empty` / `governance-stale`）；有收件箱任务在跑的区跳过。低活跃、同名重复、超过 `activeLimit` 的只进 review，必须手动勾选/确认，不自动合并或删除。
+- 治理诊断在 `lib/governance.js` 纯函数；自动归档仍由 `lib/index.js` 的 `archiveWorkspace` 执行，归档是软删除，可恢复。`governanceApply` 只接受手动 ids，返回 archived/skipped。
+- P3 独立壳：`/hybrid-workspace/shell` 复用同一面板页，API 基址回退到 `/hybrid-workspace/api`；`lib/shell-os.js` 只允许回环 `127.0.0.1/localhost/::1` 的 `/hybrid-workspace/shell`，原生 macOS 壳在 `shell/macos/main.swift`，用 `scripts/build-shell-macos.sh` 构建到 `$DSH_HOME/hybrid-workspace-v2/HybridWorkspaceShell.app`；未构建时面板明确提示并回退浏览器窗口。
+- 独立壳默认是聊天式主界面：顶栏只保留「功能」一个入口，消息流展示当前工作区的收件箱任务与结果；原 header/main 管理面板整体移入 `#console-drawer` 抽屉，不复制功能。发送走 `inboxAdd` + `inboxRun all`，继续复用 P2 执行器与治理能力。1280x800 浏览器实测聊天页、抽屉、发送与完成回写通过；全量 21 套件与面板内联脚本编译通过。
 
 ## 4. 未解决
 
-- **物理隔离（B 方案）**：主代理只路由，子代理带独立上下文回答并回摘要；DSH 侧需要 `ctx.subagents.startActivation` 或每区专用会话。面板无法替用户切会话，需客户端配合。见 `docs/plan-b.md`。P2 已实现：宿主内部 `ctx.get("agents").create` 为每区创建独立子会话，加载失败会明确失败而不是伪造完成；但它仍是内部服务，需要 adapter 与版本兼容兜底。
+- **物理隔离（B 方案）**：主代理只路由，子代理带独立上下文回答并回摘要；DSH 侧需要 `ctx.subagents.startActivation` 或每区专用会话。面板无法替用户切会话，需客户端配合。见 `docs/plan-b.md`。P2 已实现：宿主内部 `ctx.get("agents").create` 为每区创建独立子会话，加载失败会明确失败而不是伪造完成；但它仍是内部服务，需要 adapter 与版本兼容兜底。P3 只替换界面壳，执行与存储仍留在 DSH。
 - **记忆抽取保真**：规则抽取会漏无关键词叙述；可用 LLM 抽取，但每轮多一次调用，暂不做默认。
 - **跨进程并发**：state.json 无锁。
 - **LLM 路由的真实收益**：离线测试 llmCalls=0，尚未在真实 DSH 会话中验证 `ask-llm` 的比例与准确率。
@@ -218,7 +225,7 @@ DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops �
 
 ```bash
 cd dsh-hybrid-workspace-v2
-node test/all.mjs            # 20 个入口顺序执行
+node test/all.mjs            # 21 个入口顺序执行
 node test/all.mjs v23        # 只跑名字含 v23 的入口
 ```
 
