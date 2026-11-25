@@ -16,7 +16,7 @@ const loaded = normalizeState({ inbox: [{ id: 'q_loaded', text: '跑到一半', 
 ok('重启后 running 变 failed', loaded.inbox[0].status === 'failed' && loaded.inbox[0].error.includes('中断'), JSON.stringify(loaded.inbox[0]));
 
 const ctx = makeCtx({ webServer: true });
-const inst = apply(ctx, { debug: false, llmJudge: false, sweepIntervalMs: 0 });
+const inst = apply(ctx, { debug: false, llmJudge: false, sweepIntervalMs: 0, inboxExecutor: 'simulate' });
 const route = ctx.routes[0];
 const server = createServer((req, res) => route.handler(req, res));
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

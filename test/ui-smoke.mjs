@@ -35,7 +35,7 @@ async function req (path, opts) {
 try {
   const page = await req('');
   ok('面板 200', page.status === 200, String(page.status));
-  ok('页面标题 v2.3', page.text.includes('混合工作区') && page.text.includes('v2.3'));
+  ok('页面标题 v2.5', page.text.includes('混合工作区') && page.text.includes('v2.5'));
   ok('页面含记忆区块', page.text.includes('相关记忆') && page.text.includes('代表性问法'));
   ok('页面含路由 trace', page.text.includes('最近路由判定'));
   ok('页面含合并按钮', page.text.includes('data-op="merge"'));
@@ -44,8 +44,8 @@ try {
   ok('关闭面板只关独立小窗，同窗回 DSH 首页', page.text.includes("const popup = window.name === 'hybrid-workspace-panel'") && page.text.includes('if (popup)') && page.text.includes("window.location.assign('/')"));
   ok('页面使用内嵌对话框而不是浏览器 prompt/confirm/alert', page.text.includes('function openDialog') && !/\b(prompt|confirm|alert)\s*\(/.test(page.text));
   ok('页面含上下文占用', page.text.includes('上下文占用') && page.text.includes('所有区合计'));
-  ok('页面含统一收件箱', page.text.includes('id="inbox"') && page.text.includes('统一收件箱') && page.text.includes('P1 预览'));
-  ok('收件箱明确未接执行器', page.text.includes('不调用 DSH 执行器') && page.text.includes('完成状态是模拟的'));
+  ok('页面含统一收件箱', page.text.includes('id="inbox"') && page.text.includes('统一收件箱') && page.text.includes('P2 两区试点'));
+  ok('收件箱说明真实执行器与审批隔离', page.text.includes('独立 DSH 子会话') && page.text.includes('审批固定为 never') && page.text.includes('不会伪造完成'));
   ok('收件箱接入 API', page.text.includes("op: 'inboxAdd'") && page.text.includes("op: 'inboxRun'") && page.text.includes("op: 'inboxClear'"));
   ok('页面含上下文构成', page.text.includes('上下文构成') && page.text.includes('工作区卡') && page.text.includes('相关记忆'));
   ok('页面含多话题统计', page.text.includes('多话题'));

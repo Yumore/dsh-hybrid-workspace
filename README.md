@@ -66,7 +66,7 @@ http://127.0.0.1:<DSH端口>/hybrid-workspace/
 - 最近几次路由为什么留下或切走
 - 全局档案（跨工作区生效的长期偏好）
 - 已归档的工作区和可恢复的快照
-- 统一收件箱（P1 预览）：把任务写进队列、手动锁定工作区、按顺序出队；当前不调用 DSH 执行器，完成状态是模拟的
+- 统一收件箱（P2 两区试点）：把任务写进队列、手动锁定工作区、顺序或并发派发；每个任务在独立的 DSH 子会话里执行，同区串行、跨区最多 2 并发，审批固定为 never，结果只回写任务卡
 - 导出、导入、迁移、合并、改名、归档
 
 ## 和哪些插件一起用
@@ -96,6 +96,9 @@ http://127.0.0.1:<DSH端口>/hybrid-workspace/
     maxWorkspaces: 60
     activeLimit: 12         # 活跃工作区上限；满了回退当前区/最近区
     newTopicConfirm: 0.12   # 第二跳确认阈值，越低越容易建新区
+    inboxExecutor: auto     # auto=DSH 子会话；simulate=只做本地模拟，不调用执行器
+    inboxMaxConcurrent: 2   # 跨区并发上限，1-4
+    inboxTaskTimeoutMs: 600000  # 单个任务超时，超时主动取消
     panelPath: /hybrid-workspace
 ```
 
