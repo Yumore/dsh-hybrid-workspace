@@ -211,6 +211,12 @@ DSH 里有些插件会把提示以 role=user 的消息注入（例如 dsh-ops �
 - P3 独立壳：`/hybrid-workspace/shell` 复用同一面板页，API 基址回退到 `/hybrid-workspace/api`；`lib/shell-os.js` 只允许回环 `127.0.0.1/localhost/::1` 的 `/hybrid-workspace/shell`，原生 macOS 壳在 `shell/macos/main.swift`，用 `scripts/build-shell-macos.sh` 构建到 `$DSH_HOME/hybrid-workspace-v2/HybridWorkspaceShell.app`；未构建时面板明确提示并回退浏览器窗口。
 - 独立壳默认是聊天式主界面：顶栏只保留「功能」一个入口，消息流展示当前工作区的收件箱任务与结果；原 header/main 管理面板整体移入 `#console-drawer` 抽屉，不复制功能。发送走 `inboxAdd` + `inboxRun all`，继续复用 P2 执行器与治理能力。1280x800 浏览器实测聊天页、抽屉、发送与完成回写通过；全量 21 套件与面板内联脚本编译通过。
 
+### 3.14 v2.6.1 工作区按钮改为同窗导航
+
+- DSH 桌面端 `app.asar/lib/main.js:20278` 的 `setWindowOpenHandler` 会把 `http(s)` 的 `window.open` 交给系统浏览器并 `deny` 应用内窗口；系统浏览器没有 DSH 登录态，用户只会看到 `dsh web authentication required`。
+- `lib/client.js` 的「工作区」按钮改为 `window.location.assign(new URL("hybrid-workspace/", window.location.origin).href)`，在当前 DSH 窗口内导航；面板「关闭面板」仍回 `/`。不再使用 `window.open`。
+- 全量 21 套件与面板内联脚本编译通过；`test/load-check.mjs` 增加同窗导航断言，禁止 `window.open(`。
+
 ## 4. 未解决
 
 - **物理隔离（B 方案）**：主代理只路由，子代理带独立上下文回答并回摘要；DSH 侧需要 `ctx.subagents.startActivation` 或每区专用会话。面板无法替用户切会话，需客户端配合。见 `docs/plan-b.md`。P2 已实现：宿主内部 `ctx.get("agents").create` 为每区创建独立子会话，加载失败会明确失败而不是伪造完成；但它仍是内部服务，需要 adapter 与版本兼容兜底。P3 只替换界面壳，执行与存储仍留在 DSH。
