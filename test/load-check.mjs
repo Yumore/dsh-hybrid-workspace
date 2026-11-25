@@ -22,7 +22,9 @@ ok('声明 lib 深导入与 npm test', pkg.exports?.['./lib/*'] === './lib/*' &&
 ok('声明浏览器半边与工作区按钮', pkg.exports?.['./client']?.default === './lib/client.js' && pkg.dsh?.client?.platform === 'web' && existsSync(new URL('../lib/client.js', import.meta.url)), JSON.stringify({ client: pkg.exports?.['./client'], dshClient: pkg.dsh?.client }));
 const clientText = existsSync(new URL('../lib/client.js', import.meta.url)) ? readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8') : '';
 ok('客户端按钮在会话头部而不是输入框下方', clientText.includes('conversation.session.header.utilities') && !clientText.includes('conversation.input.right'));
-ok('客户端在当前窗口打开面板', clientText.includes('window.location.assign') && clientText.includes('hybrid-workspace/') && !clientText.includes('window.open('), clientText.match(/window\.location\.assign\([^)]*\)/)?.[0] ?? '');
+ok('客户端用完整地址解析面板 URL', clientText.includes('new URL("hybrid-workspace/", window.location.href)') && !clientText.includes('window.location.origin'));
+ok('客户端在 DSH 窗口内用 iframe 打开面板', clientText.includes('showPanelOverlay(href)') && clientText.includes('hybrid-workspace-overlay') && !clientText.includes('window.open('), clientText.match(/showPanelOverlay\([^)]*\)/)?.[0] ?? '');
+ok('客户端保留同源导航兜底与浏览器外开入口', clientText.includes('window.location.assign') && clientText.includes('__DSH_TRANSPORT__') && clientText.includes('浏览器打开'));
 ok('package.json 声明 dsh.bundle（DSH 才会加载这个包）', pkg.dsh?.manifestVersion === 1 && typeof pkg.dsh?.bundle?.patch === 'string', JSON.stringify(pkg.dsh ?? null));
 const bundlePatchRel = pkg.dsh?.bundle?.patch;
 const bundlePatch = bundlePatchRel ? new URL('../' + bundlePatchRel.replace(/^\.\//, ''), import.meta.url) : null;

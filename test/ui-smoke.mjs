@@ -48,6 +48,7 @@ try {
   ok('独立壳页面 200', shellPage.status === 200 && shellPage.text.includes('const SHELL') && shellPage.text.includes('独立壳'), String(shellPage.status));
   ok('页面含治理区', page.text.includes('id="governance"') && page.text.includes('工作区治理') && page.text.includes('data-gov="archive-picked"'));
   ok('页面含关闭面板按钮', page.text.includes('id="close-panel"'));
+  ok('嵌入 iframe 时隐藏面板关闭与独立壳入口', page.text.includes('window.self !== window.top') && page.text.includes('.embedded #close-panel'));
   ok('关闭面板只关独立小窗，同窗回 DSH 首页', page.text.includes("const popup = window.name === 'hybrid-workspace-panel'") && page.text.includes('if (popup)') && page.text.includes("window.location.assign('/')"));
   ok('页面使用内嵌对话框而不是浏览器 prompt/confirm/alert', page.text.includes('function openDialog') && !/\b(prompt|confirm|alert)\s*\(/.test(page.text));
   ok('页面含上下文占用', page.text.includes('上下文占用') && page.text.includes('所有区合计'));
